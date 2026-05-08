@@ -13,6 +13,7 @@ from .agent import OpenOSINTAgent
 from .config import CONFIG_FILE, PROVIDER_MODELS, Config
 from .display import Display
 
+
 def _check_disclaimer(config: "Config", display: "Display") -> None:
     """Show the legal disclaimer on first run; exit if not accepted."""
     if config.disclaimer_accepted:
