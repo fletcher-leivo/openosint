@@ -11,10 +11,10 @@ fi
 echo "Releasing v$VERSION..."
 
 # Update version in pyproject.toml
-sed -i "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+sed -i '' "s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
 
 # Update version in openosint/__init__.py
-sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" openosint/__init__.py
+sed -i '' "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" openosint/__init__.py
 
 # Commit version bump
 git add pyproject.toml openosint/__init__.py
