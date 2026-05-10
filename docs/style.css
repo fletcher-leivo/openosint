@@ -1,0 +1,95 @@
+/* Minimalist Technical Documentation Style */
+
+body {
+    background-color: #ffffff;
+    color: #000000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.4;
+    margin: 0;
+    padding: 20px;
+    font-size: 16px;
+}
+
+.container {
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+/* Header & Footer mimicking man page layout */
+.header, .footer {
+    display: flex;
+    justify-content: space-between;
+    font-family: monospace;
+    font-size: 0.9em;
+    margin-bottom: 2em;
+}
+
+.footer {
+    margin-top: 3em;
+    margin-bottom: 0;
+}
+
+h2 {
+    font-size: 1.1em;
+    text-transform: uppercase;
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+    font-weight: bold;
+}
+
+.section-content {
+    margin-left: 4ch; /* Standard 4-character indentation */
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: 1em;
+    text-align: justify;
+}
+
+ul {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding-left: 20px;
+}
+
+li {
+    margin-bottom: 0.5em;
+}
+
+/* Code and Preformatted text */
+pre, code {
+    font-family: Consolas, "Courier New", Courier, monospace;
+    font-size: 0.95em;
+}
+
+pre {
+    background-color: #f8f8f8;
+    border: 1px solid #cccccc;
+    padding: 10px;
+    overflow-x: auto;
+    margin-top: 0.5em;
+    margin-bottom: 1.5em;
+}
+
+strong {
+    font-weight: bold;
+}
+
+em {
+    font-style: italic;
+}
+
+/* Dark mode support for terminal users */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
+    
+    pre {
+        background-color: #1e1e1e;
+        border-color: #444444;
+        color: #d4d4d4;
+    }
+}

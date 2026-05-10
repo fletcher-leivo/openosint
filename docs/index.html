@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>openosint(1) - General Commands Manual</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="left">OPENOSINT(1)</span>
+            <span class="center">General Commands Manual</span>
+            <span class="right">OPENOSINT(1)</span>
+        </div>
+
+        <h2>NAME</h2>
+        <div class="section-content">
+            <p><strong>openosint</strong> - Model Context Protocol (MCP) server and CLI for Open Source Intelligence</p>
+        </div>
+
+        <h2>SYNOPSIS</h2>
+        <div class="section-content">
+            <pre><strong>openosint</strong> [<strong>-h</strong>] [<strong>-v</strong>] <em>command</em> [<em>args ...</em>]</pre>
+        </div>
+
+        <h2>DESCRIPTION</h2>
+        <div class="section-content">
+            <p>The <strong>openosint</strong> framework provides a standardized interface between large language models (LLMs) and real-world OSINT tools via the Model Context Protocol (MCP). It allows AI agents like Claude to autonomously discover, execute, and parse intelligence gathering tasks.</p>
+            <p>It can operate both as a daemonized MCP server over stdio and as a standalone command-line interface for manual execution.</p>
+        </div>
+
+        <h2>ARCHITECTURE</h2>
+        <div class="section-content">
+            <p>The system is strictly divided into three layers:</p>
+            <ul>
+                <li><strong>Core Modules:</strong> Asynchronous Python wrappers executing external binaries (e.g., holehe).</li>
+                <li><strong>MCP Server:</strong> Exposes the core modules as tool schemas adhering to the Anthropic MCP specification.</li>
+                <li><strong>CLI:</strong> An argparse-driven wrapper for direct human-in-the-loop execution.</li>
+            </ul>
+        </div>
+
+        <h2>INSTALLATION</h2>
+        <div class="section-content">
+            <p>Installation is managed via pip using the PEP 621 compliant pyproject.toml configuration.</p>
+            <pre>$ git clone https://github.com/tuo-username/OpenOSINT.git
+$ cd OpenOSINT
+$ pip install -e .</pre>
+        </div>
+
+        <h2>CONFIGURATION (CLAUDE)</h2>
+        <div class="section-content">
+            <p>To register the MCP server with the Claude Code CLI, execute the following command, specifying the absolute path to the wrapper script:</p>
+            <pre>$ claude mcp add openosint python /path/to/OpenOSINT/openosint/mcp_server.py</pre>
+        </div>
+
+        <h2>EXAMPLES</h2>
+        <div class="section-content">
+            <p>Direct manual execution via CLI to verify email presence across services:</p>
+            <pre>$ openosint email target@example.com --timeout 60</pre>
+            <p>Agentic execution via Claude Code (after MCP registration):</p>
+            <pre>$ claude
+> Analyze target@example.com using the available OSINT tools.</pre>
+        </div>
+
+        <h2>AUTHORS</h2>
+        <div class="section-content">
+            <p>Developed by Tommaso.</p>
+        </div>
+
+        <div class="footer">
+            <span class="left">OpenOSINT 2.0.0</span>
+            <span class="center">May 10, 2026</span>
+            <span class="right">OPENOSINT(1)</span>
+        </div>
+    </div>
+</body>
+</html>

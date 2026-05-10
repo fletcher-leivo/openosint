@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openosint"
+version = "2.0.0" # La nostra Major Release per l'era dell'AI!
+description = "The first MCP-native Open Source Intelligence framework for AI Agents."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Tommaso", email = "tua.email@example.com"} # Metti i tuoi dati
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "mcp>=1.0.0",  # SDK per Anthropic/Claude
+    "holehe>=1.61" # Il tool OSINT di base
+]
+
+[project.urls]
+Homepage = "https://github.com/tuo-username/OpenOSINT"
+Documentation = "https://tuo-username.github.io/OpenOSINT"
+Repository = "https://github.com/tuo-username/OpenOSINT.git"
+
+# QUESTA È LA MAGIA PER LA CLI
+[project.scripts]
+openosint = "openosint.cli:main"
