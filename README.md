@@ -24,31 +24,33 @@
 
 ## NAME
 
-**openosint** &mdash; Model Context Protocol server and CLI for Open Source Intelligence.
+**openosint** &mdash; AI-powered OSINT agent, MCP server, and CLI for Open Source Intelligence.
 
 ---
 
 ## SYNOPSIS
 
 ```
-openosint [-v] command [args ...]
-openosint email ADDRESS [-t SECONDS]
-openosint username HANDLE [-t SECONDS]
+openosint                          # interactive AI REPL (default)
+openosint shell                    # same as above
+openosint email ADDRESS [-t N]     # direct email scan, no AI
+openosint username HANDLE [-t N]   # direct username scan, no AI
+openosint [-v] [--api-key KEY]
 ```
 
 ---
 
 ## DESCRIPTION
 
-**openosint** is a modular OSINT framework that exposes 9 intelligence-gathering
-tools to large language models via the Anthropic Model Context Protocol (MCP).
-It also operates as a conventional command-line interface for direct human
-execution.
+**openosint** is a modular OSINT framework with three interfaces:
 
-The framework is built on a non-blocking asynchronous runtime (Python `asyncio`).
-All external binaries are invoked as managed subprocesses with hard timeout
-enforcement. No LLM is embedded — **openosint** provides the tool surface that
-an MCP-compatible client drives autonomously.
+**Interactive REPL** (default) — a Claude Code-style terminal where you type targets or questions in natural language. The AI agent decides which tools to run, chains them intelligently based on findings, and compiles a structured report.
+
+**Direct CLI** — run individual OSINT tools without AI for scripting or quick lookups.
+
+**MCP Server** — expose all 9 tools to any MCP-compatible AI client (Claude Code, Claude Desktop).
+
+The framework is built on Python `asyncio`. All external binaries run as managed subprocesses with hard timeout enforcement. The AI layer uses the Anthropic native tool use API — the model issues hard stops when it needs a tool, your code executes it, the real output goes back. Hallucination in tool results is structurally impossible.
 
 ---
 
@@ -56,11 +58,13 @@ an MCP-compatible client drives autonomously.
 
 | Layer | Path | Responsibility |
 |-------|------|----------------|
-| Core tools | `openosint/tools/` | Async wrappers around external OSINT binaries and APIs. No I/O, no UI. |
-| MCP server | `openosint/mcp_server.py` | Translates core functions into MCP tool schemas. Routes LLM calls. |
-| CLI | `openosint/cli.py` | Human-facing interface. Calls core tools directly. |
+| Core tools | `openosint/tools/` | Async wrappers around external OSINT binaries and APIs. Stateless. |
+| AI agent | `openosint/agent.py` | Anthropic tool use loop. Maintains conversation history. |
+| REPL | `openosint/repl.py` | Interactive terminal session. prompt_toolkit + Rich. |
+| MCP server | `openosint/mcp_server.py` | MCP tool schema exposure for AI clients. |
+| CLI | `openosint/cli.py` | Entry point. Launches REPL or direct commands. |
 
-No layer imports from a layer above it. The core tools are stateless and have no knowledge of MCP or argparse.
+No layer imports from a layer above it.
 
 ---
 
@@ -74,6 +78,12 @@ cd OpenOSINT
 pip install -e .
 ```
 
+Set your Anthropic API key:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
 **External dependencies** (must be present in `PATH`):
 
 | Binary | Purpose | Install |
@@ -83,7 +93,7 @@ pip install -e .
 | `sublist3r` | Subdomain enumeration | `pip install sublist3r` |
 | `phoneinfoga` | Phone number intelligence | [Download binary](https://github.com/sundowndev/phoneinfoga/releases) |
 
-If a binary is absent, the corresponding tool returns a descriptive error string. The server and CLI remain operational for tools with satisfied dependencies.
+If a binary is absent, the corresponding tool returns a descriptive error string. All other tools remain operational.
 
 **Optional environment variables:**
 
@@ -94,13 +104,73 @@ If a binary is absent, the corresponding tool returns a descriptive error string
 
 ---
 
+## INTERACTIVE REPL
+
+Run `openosint` with no arguments to start the AI-powered REPL:
+
+```
+openosint ❯ investigate target@example.com
+
+  → generate_dorks('target@example.com')
+  → search_email('target@example.com')
+  ✓ Found: Spotify, WordPress, Gravatar, Office365
+
+  → search_breach('target@example.com')
+  ✓ Found in 2 breaches: LinkedIn (2016), Adobe (2013)
+
+  ╭──────────────────── Report ────────────────────╮
+  │ ## Summary                                     │
+  │ Single target identified — high confidence.    │
+  │                                                │
+  │ ## Online Presence                             │
+  │ Spotify · WordPress · Gravatar · Office365     │
+  │                                                │
+  │ ## Data Breaches                               │
+  │ LinkedIn (2016) · Adobe (2013)                 │
+  │                                                │
+  │ ## Conclusion                                  │
+  │ Moderate footprint. Credential rotation        │
+  │ advised given breach exposure.                 │
+  ╰────────────────────────────────────────────────╯
+
+  ✓ Report saved → reports/2026-05-11_14-32-11_report.md
+```
+
+**REPL commands:**
+
+| Command | Description |
+|---------|-------------|
+| `<target>` | Investigate any target — email, username, domain, IP, name |
+| `clear` | Reset conversation memory |
+| `save` | Save last report to `reports/` |
+| `tools` | List available tools and their status |
+| `config` | Show current configuration |
+| `help` | Show all commands |
+| `exit` / Ctrl-D | Exit |
+
+Reports are auto-saved after every investigation containing structured findings.
+
+---
+
 ## TOOLS
+
+| Tool | Method | What it finds |
+|------|--------|---------------|
+| `search_email` | holehe | Social accounts linked to an email |
+| `search_username` | sherlock | Accounts across 300+ platforms |
+| `search_breach` | HaveIBeenPwned API | Data breach exposure |
+| `search_whois` | python-whois | Domain registrant info |
+| `search_ip` | ipinfo.io | Geolocation, ASN, hostname |
+| `search_domain` | sublist3r | Subdomain enumeration |
+| `generate_dorks` | built-in | Google dork URL generation |
+| `search_paste` | psbdmp.ws | Pastebin dump mentions |
+| `search_phone` | phoneinfoga | Carrier, country, line type |
 
 ### search_email
 
-Enumerates online services and social accounts associated with an email address using [holehe](https://github.com/megadose/holehe).
+Enumerates online services linked to an email address using [holehe](https://github.com/megadose/holehe).
 
-**MCP parameter:** `email` (string, required) — target email address.
+**MCP parameter:** `email` (string, required)
 
 **CLI:**
 ```bash
@@ -108,10 +178,9 @@ $ openosint email target@example.com
 $ openosint email target@example.com -t 60
 ```
 
-**Example output:**
+**Output:**
 ```
 OSINT results for 'target@example.com':
-
 [+] Spotify        https://open.spotify.com/user/target
 [+] WordPress      https://wordpress.com/target
 [+] Gravatar       https://gravatar.com/target
@@ -124,7 +193,7 @@ OSINT results for 'target@example.com':
 
 Searches for a username across 300+ platforms using [sherlock](https://github.com/sherlock-project/sherlock).
 
-**MCP parameter:** `username` (string, required) — target username or alias.
+**MCP parameter:** `username` (string, required)
 
 **CLI:**
 ```bash
@@ -132,93 +201,75 @@ $ openosint username johndoe99
 $ openosint username johndoe99 -t 120
 ```
 
-**Example output:**
+**Output:**
 ```
 OSINT results for username 'johndoe99':
-
 [+] GitHub         https://github.com/johndoe99
 [+] Twitter        https://twitter.com/johndoe99
 [+] Reddit         https://reddit.com/user/johndoe99
-[+] HackerNews     https://news.ycombinator.com/user?id=johndoe99
 ```
 
 ---
 
 ### search_breach
 
-Checks if an email address appears in known public data breaches via the [HaveIBeenPwned v3 API](https://haveibeenpwned.com/API/v3).
+Checks data breach exposure via [HaveIBeenPwned v3 API](https://haveibeenpwned.com/API/v3). Requires `HIBP_API_KEY`.
 
-**Requires:** `HIBP_API_KEY` environment variable set.
+**MCP parameter:** `email` (string, required)
 
-**MCP parameter:** `email` (string, required) — target email address.
-
-**Example output:**
+**Output:**
 ```
 Found in 2 breach(es) for 'target@example.com':
-
-[+] LinkedIn (2016-05-05) — leaked: Email addresses, Passwords, Names
-[+] Adobe (2013-10-04) — leaked: Email addresses, Password hints, Usernames
+[+] LinkedIn (2016-05-05) — leaked: Email addresses, Passwords
+[+] Adobe (2013-10-04) — leaked: Email addresses, Password hints
 ```
 
 ---
 
 ### search_whois
 
-Retrieves WHOIS registration data for a domain using [python-whois](https://github.com/richardpenman/whois).
+Retrieves WHOIS data for a domain using [python-whois](https://github.com/richardpenman/whois).
 
-**MCP parameter:** `domain` (string, required) — target domain (e.g. `example.com`).
+**MCP parameter:** `domain` (string, required)
 
-**Example output:**
+**Output:**
 ```
 WHOIS results for 'example.com':
-
-[+] Domain: EXAMPLE.COM
 [+] Registrar: ICANN
 [+] Created: 1995-08-14
 [+] Expires: 2024-08-13
-[+] Name Servers: A.IANA-SERVERS.NET, B.IANA-SERVERS.NET
-[+] Emails: abuse@iana.org
+[+] Name Servers: A.IANA-SERVERS.NET
 ```
 
 ---
 
 ### search_ip
 
-Retrieves geolocation, ASN, hostname, and organisation data for an IP address via [ipinfo.io](https://ipinfo.io).
+Retrieves geolocation and ASN data via [ipinfo.io](https://ipinfo.io). Free tier: 50k/month.
 
-Free tier: 50k requests/month without a token. Set `IPINFO_TOKEN` for higher limits.
+**MCP parameter:** `ip` (string, required)
 
-**MCP parameter:** `ip` (string, required) — target IP address (e.g. `8.8.8.8`).
-
-**Example output:**
+**Output:**
 ```
 IP intelligence for '8.8.8.8':
-
-[+] Ip: 8.8.8.8
 [+] Hostname: dns.google
 [+] Org: AS15169 Google LLC
-[+] City: Mountain View
-[+] Region: California
-[+] Country: US
-[+] Loc: 37.4056,-122.0775
-[+] Timezone: America/Los_Angeles
+[+] City: Mountain View, CA, US
 ```
 
 ---
 
 ### search_domain
 
-Enumerates subdomains of a target domain using [sublist3r](https://github.com/aboul3la/Sublist3r).
+Enumerates subdomains using [sublist3r](https://github.com/aboul3la/Sublist3r).
 
-**MCP parameter:** `domain` (string, required) — target domain (e.g. `example.com`).
+**MCP parameter:** `domain` (string, required)
 
-**Example output:**
+**Output:**
 ```
 Subdomains found for 'example.com':
-
 [+] mail.example.com
 [+] dev.example.com
-[+] staging.example.com
 [+] api.example.com
 ```
 
@@ -226,54 +277,45 @@ Subdomains found for 'example.com':
 
 ### generate_dorks
 
-Generates a set of 12 targeted Google dork URLs for any target string (name, email, username, or domain). No network calls — returns URLs ready to open in a browser.
+Generates 12 targeted Google dork URLs for any target. No network calls.
 
-**MCP parameter:** `target` (string, required) — any target string.
+**MCP parameter:** `target` (string, required)
 
-**Example output:**
+**Output:**
 ```
-Google dork URLs for 'john.doe@example.com':
-
-[+] "john.doe@example.com"
-    https://www.google.com/search?q=%22john.doe%40example.com%22
-
-[+] "john.doe@example.com" site:linkedin.com
-    https://www.google.com/search?q=%22john.doe%40example.com%22+site%3Alinkedin.com
-...
+Google dork URLs for 'johndoe':
+[+] "johndoe" site:linkedin.com
+    https://www.google.com/search?q=%22johndoe%22+site%3Alinkedin.com
+[+] "johndoe" leaked OR breach OR dump
+    https://www.google.com/search?q=%22johndoe%22+leaked+OR+breach+OR+dump
 ```
 
 ---
 
 ### search_paste
 
-Searches Pastebin dumps for mentions of an email address or username via the [psbdmp.ws](https://psbdmp.ws) public API.
+Searches Pastebin dumps via [psbdmp.ws](https://psbdmp.ws).
 
-**MCP parameter:** `query` (string, required) — email address or username to search for.
+**MCP parameter:** `query` (string, required)
 
-**Example output:**
+**Output:**
 ```
 Found in 3 paste(s) for 'target@example.com':
-
 [+] https://pastebin.com/aB1cD2eF (2023-04-12)
 [+] https://pastebin.com/xY3zA4bC (2022-11-08)
-[+] https://pastebin.com/mN5oP6qR (2021-07-30)
 ```
 
 ---
 
 ### search_phone
 
-Gathers carrier, country, and line type data for a phone number using [phoneinfoga](https://github.com/sundowndev/phoneinfoga).
+Gathers phone intelligence using [phoneinfoga](https://github.com/sundowndev/phoneinfoga). Use E.164 format.
 
-**MCP parameter:** `phone` (string, required) — target phone number in E.164 format (e.g. `+14155552671`).
+**MCP parameter:** `phone` (string, required)
 
-**Requires:** `phoneinfoga` binary in `PATH`. [Download here](https://github.com/sundowndev/phoneinfoga/releases).
-
-**Example output:**
+**Output:**
 ```
 Phone intelligence for '+14155552671':
-
-[+] International format: +1 415-555-2671
 [+] Country: United States
 [+] Carrier: AT&T
 [+] Line type: Mobile
@@ -281,40 +323,34 @@ Phone intelligence for '+14155552671':
 
 ---
 
-## COMMANDS
+## DIRECT CLI COMMANDS
 
 ```
 email ADDRESS [-t SECONDS]
 ```
-Enumerate online services registered against *ADDRESS* using holehe. Default timeout: 120 seconds.
+Enumerate services for *ADDRESS* via holehe. Default timeout: 120s.
 
 ```
 username HANDLE [-t SECONDS]
 ```
-Enumerate platforms where *HANDLE* is registered using sherlock. Default timeout: 180 seconds.
+Enumerate platforms for *HANDLE* via sherlock. Default timeout: 180s.
 
-**Global flags:**
+**Flags:**
 
 | Flag | Description |
 |------|-------------|
-| `-v, --verbose` | Enable debug-level logging to stderr. |
-| `-t, --timeout N` | Override default subprocess timeout (seconds). |
+| `-v, --verbose` | Enable debug logging to stderr. |
+| `-t, --timeout N` | Override subprocess timeout (seconds). |
+| `--api-key KEY` | Anthropic API key (overrides env var). |
 
 ---
 
-## CONFIGURATION
+## MCP SERVER CONFIGURATION
 
 ### Claude Code
 
-Register the MCP server after installation:
-
 ```bash
 claude mcp add openosint python /absolute/path/to/OpenOSINT/openosint/mcp_server.py
-```
-
-Verify:
-
-```bash
 claude mcp list
 ```
 
@@ -337,30 +373,27 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## EXAMPLES
 
-Enumerate services registered against an email address:
+**Interactive REPL:**
+```bash
+$ openosint
+openosint ❯ investigate target@example.com
+openosint ❯ find all accounts for johndoe99
+openosint ❯ what subdomains does example.com have?
+openosint ❯ check if +14155552671 is a mobile number
+```
 
+**Direct CLI:**
 ```bash
 $ openosint email target@example.com -t 60
-```
-
-Search for a username across all supported platforms:
-
-```bash
 $ openosint username johndoe99
-```
-
-Enable verbose output:
-
-```bash
 $ openosint -v email target@example.com
 ```
 
-Agentic execution via Claude Code after MCP registration:
-
+**Agentic via Claude Code:**
 ```
 $ claude
-> Investigate target@example.com. If you find an associated username,
-  trace it across other platforms and compile a full report.
+> Investigate target@example.com. Trace any username found
+  across other platforms and compile a full report.
 ```
 
 ---
@@ -369,19 +402,21 @@ $ claude
 
 | Path | Description |
 |------|-------------|
-| `openosint/mcp_server.py` | MCP server entry point (stdio transport). |
+| `openosint/agent.py` | AI agent loop (Anthropic tool use). |
+| `openosint/repl.py` | Interactive REPL session. |
+| `openosint/mcp_server.py` | MCP server entry point (stdio). |
 | `openosint/cli.py` | CLI entry point. |
-| `openosint/tools/search_email.py` | Email enumeration module. |
-| `openosint/tools/search_username.py` | Username enumeration module. |
-| `openosint/tools/search_breach.py` | Data breach check module. |
-| `openosint/tools/search_whois.py` | WHOIS lookup module. |
-| `openosint/tools/search_ip.py` | IP intelligence module. |
-| `openosint/tools/search_domain.py` | Subdomain enumeration module. |
-| `openosint/tools/generate_dorks.py` | Google dork URL generator. |
-| `openosint/tools/search_paste.py` | Pastebin dump search module. |
-| `openosint/tools/search_phone.py` | Phone intelligence module. |
+| `openosint/tools/search_email.py` | Email enumeration. |
+| `openosint/tools/search_username.py` | Username enumeration. |
+| `openosint/tools/search_breach.py` | Data breach check. |
+| `openosint/tools/search_whois.py` | WHOIS lookup. |
+| `openosint/tools/search_ip.py` | IP intelligence. |
+| `openosint/tools/search_domain.py` | Subdomain enumeration. |
+| `openosint/tools/generate_dorks.py` | Google dork generator. |
+| `openosint/tools/search_paste.py` | Pastebin search. |
+| `openosint/tools/search_phone.py` | Phone intelligence. |
 | `openosint/tools/exceptions.py` | Shared exception hierarchy. |
-| `pyproject.toml` | Project metadata and build configuration (PEP 621). |
+| `pyproject.toml` | Build configuration (PEP 621). |
 | `DISCLAIMER.md` | Legal notice and ethical use policy. |
 
 ---
@@ -391,7 +426,7 @@ $ claude
 | Code | Meaning |
 |------|---------|
 | 0 | Successful execution. |
-| 1 | General error (invalid arguments, tool failure). |
+| 1 | General error. |
 | 130 | Terminated by SIGINT (Ctrl-C). |
 
 ---
@@ -408,4 +443,4 @@ MIT License. See [LICENSE](LICENSE).
 
 ---
 
-*OpenOSINT 2.1.0 &mdash; May 11, 2026*
+*OpenOSINT 2.2.0 &mdash; May 11, 2026*
