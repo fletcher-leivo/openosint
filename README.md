@@ -61,6 +61,15 @@ The framework is built on Python `asyncio`. All external binaries run as managed
 
 ---
 
+## ⭐ Support the Project
+
+If OpenOSINT is useful to you, please consider starring the repository.
+Stars help the project grow and reach more developers.
+
+[![GitHub Stars](https://img.shields.io/github/stars/OpenOSINT/OpenOSINT?style=social)](https://github.com/OpenOSINT/OpenOSINT/stargazers)
+
+---
+
 ## ARCHITECTURE
 
 | Layer | Path | Responsibility |
