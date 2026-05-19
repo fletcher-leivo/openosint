@@ -11,6 +11,7 @@
 [![MCP](https://img.shields.io/badge/protocol-MCP-blueviolet?style=flat-square)](https://modelcontextprotocol.io/)
 [![PyPI](https://img.shields.io/pypi/v/openosint?style=flat-square)](https://pypi.org/project/openosint/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![Sponsored by IP2Location](https://img.shields.io/badge/Sponsored%20by-IP2Location-blue?style=flat-square&logo=data:image/png;base64,iVBORw0KGgo=&logoColor=white)](https://www.ip2location.com)
 
 > ⚠️ **Legal Disclaimer**: OpenOSINT is intended for **legal and authorized use only**.
 > Users are solely responsible for ensuring their use complies with all applicable laws.
@@ -641,6 +642,18 @@ $ claude
 ## AUTHORS
 
 Developed by Tommaso Bertocchi.
+
+---
+
+## Sponsors
+
+OpenOSINT is proudly sponsored by:
+
+| Sponsor | Description |
+|---|---|
+| [![IP2Location](https://www.ip2location.com/images/ip2location-logo.png)](https://www.ip2location.com) | [IP2Location](https://www.ip2location.com) — IP geolocation, VPN, Tor, proxy and datacenter detection API. Used by 20% of Fortune 500 companies. |
+
+> Want to sponsor OpenOSINT? Open an issue or reach out directly.
 
 ---
 
