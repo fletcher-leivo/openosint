@@ -1,6 +1,6 @@
 # openosint/mcp_server.py
 """
-OpenOSINT MCP Server — v2.10.0
+OpenOSINT MCP Server — v2.11.0
 
 Exposes all 12 OSINT tool capabilities plus multi-target investigation
 to MCP-compliant AI clients over standard I/O.
