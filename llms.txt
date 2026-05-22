@@ -1,0 +1,39 @@
+# OpenOSINT
+> MCP-native Open Source Intelligence framework for AI agents. Autonomous OSINT investigations from your terminal.
+
+## Overview
+OpenOSINT is a modular OSINT framework that exposes 9 intelligence-gathering tools to large language models via the Model Context Protocol (MCP). It also operates as a standalone CLI for direct human use. No LLM is embedded — OpenOSINT provides the tool surface that an MCP-compatible client (e.g. Claude Code) drives autonomously.
+
+## Installation
+- PyPI: `pip install openosint`
+- Source: `git clone https://github.com/OpenOSINT/OpenOSINT.git && pip install -e .`
+- Python 3.10+ required
+
+## Claude Code MCP setup
+`claude mcp add openosint python /absolute/path/to/OpenOSINT/openosint/mcp_server.py`
+
+## Available MCP tools
+- `search_email` — enumerate online services registered against an email address (via holehe)
+- `search_username` — search a username across 300+ platforms (via sherlock)
+- `search_breach` — check if an email appears in known data breaches (HaveIBeenPwned v3 API, requires HIBP_API_KEY)
+- `search_whois` — retrieve WHOIS registration data for a domain
+- `search_ip` — geolocation, ASN, hostname, and org data for an IP address (via ipinfo.io)
+- `search_domain` — enumerate subdomains of a target domain (via sublist3r)
+- `generate_dorks` — generate 12 targeted Google dork URLs for any target string
+- `search_paste` — search Pastebin dumps for mentions of an email or username
+- `search_phone` — carrier, country, and line type data for a phone number (via phoneinfoga)
+
+## Optional environment variables
+- `HIBP_API_KEY` — HaveIBeenPwned API key for breach search
+- `IPINFO_TOKEN` — ipinfo.io token for higher rate limits
+
+## External binary dependencies
+holehe, sherlock, sublist3r, phoneinfoga — must be present in PATH
+
+## License
+MIT
+
+## Links
+- GitHub: https://github.com/OpenOSINT/OpenOSINT
+- PyPI: https://pypi.org/project/openosint/
+- Docs: https://openosint.github.io/OpenOSINT/
