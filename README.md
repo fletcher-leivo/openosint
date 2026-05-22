@@ -23,11 +23,6 @@
   <img src="assets/demo.gif" alt="OpenOSINT demo" width="700" />
 </div>
 
-<div align="center">
-  <strong>Web UI</strong> — launch with <code>openosint web</code><br/>
-  <img src="assets/web-demo.gif" alt="OpenOSINT web UI demo" width="700" />
-</div>
-
 > ⚠️ **Legal Disclaimer**: OpenOSINT is intended for **legal and authorized use only**.
 > Users are solely responsible for ensuring their use complies with all applicable laws and regulations.
 > The authors accept no liability for misuse. See [DISCLAIMER.md](DISCLAIMER.md).
@@ -484,6 +479,11 @@ Set `ANTHROPIC_API_KEY` (and optionally `HIBP_API_KEY`, `IPINFO_TOKEN`) in a `.e
 | `--ollama-model MODEL` | Ollama model name (default: `llama3.2`) |
 | `--ollama-host URL` | Ollama server URL (default: `http://localhost:11434`) |
 | `--no-pdf` | Disable automatic PDF generation |
+
+<div align="center">
+  <strong>Web UI</strong> — launch with <code>openosint web</code><br/>
+  <img src="assets/web-demo.gif" alt="OpenOSINT web UI demo" width="700" />
+</div>
 
 ## Sponsors
 
