@@ -93,6 +93,7 @@ def clear_sessions() -> int:
 # Rich display helpers (shared by REPL and CLI)
 # ---------------------------------------------------------------------------
 
+
 def _fmt_duration(seconds: int) -> str:
     if seconds < 60:
         return f"{seconds}s"
@@ -169,22 +170,27 @@ def display_session_detail(session: dict[str, Any], index: int, console: Any) ->
     ]
 
     console.print()
-    console.print(Panel(
-        "\n".join(lines),
-        title=f"[bold]Session #{index}[/]",
-        border_style="#00ff88",
-        padding=(0, 2),
-    ))
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title=f"[bold]Session #{index}[/]",
+            border_style="#00ff88",
+            padding=(0, 2),
+        )
+    )
 
     if report:
         rp = Path(report)
         if rp.exists():
             from rich.markdown import Markdown
-            console.print(Panel(
-                Markdown(rp.read_text(encoding="utf-8")),
-                title="[bold]Report[/]",
-                border_style="#1e293b",
-                padding=(1, 2),
-            ))
+
+            console.print(
+                Panel(
+                    Markdown(rp.read_text(encoding="utf-8")),
+                    title="[bold]Report[/]",
+                    border_style="#1e293b",
+                    padding=(1, 2),
+                )
+            )
 
     console.print()

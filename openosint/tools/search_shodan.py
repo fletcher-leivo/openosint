@@ -26,6 +26,7 @@ _IP_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _is_ip_address(query: str) -> bool:
     """Return True when query looks like an IPv4 address."""
     return bool(_IP_RE.match(query.strip()))
@@ -61,9 +62,7 @@ def _format_search(results: dict, query: str) -> str:
     matches = results.get("matches", [])
     if not matches:
         return f"No Shodan results found for '{query}'."
-    lines = [
-        f"Shodan search results for '{query}' ({total} total, showing {len(matches)}):\n"
-    ]
+    lines = [f"Shodan search results for '{query}' ({total} total, showing {len(matches)}):\n"]
     for m in matches:
         ip = m.get("ip_str", "unknown")
         port = m.get("port", "?")
@@ -76,6 +75,7 @@ def _format_search(results: dict, query: str) -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 async def run_shodan_osint(query: str, timeout_seconds: int = _DEFAULT_TIMEOUT) -> str:
     """
@@ -102,10 +102,7 @@ async def run_shodan_osint(query: str, timeout_seconds: int = _DEFAULT_TIMEOUT) 
     try:
         import shodan  # type: ignore
     except ImportError:
-        return (
-            "Scan error: 'shodan' library is not installed. "
-            "Install it with: pip install shodan"
-        )
+        return "Scan error: 'shodan' library is not installed. Install it with: pip install shodan"
 
     logger.info("Starting Shodan lookup for: %s", query)
     try:

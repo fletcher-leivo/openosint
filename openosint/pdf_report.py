@@ -140,8 +140,7 @@ def _generate_pdf_sync(md_path: Path, pdf_path: Path, date_str: str) -> None:
         from reportlab.platypus import SimpleDocTemplate  # type: ignore
     except ImportError:
         logger.warning(
-            "reportlab not installed — PDF generation skipped. "
-            "Install with: pip install reportlab"
+            "reportlab not installed — PDF generation skipped. Install with: pip install reportlab"
         )
         return
 

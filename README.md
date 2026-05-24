@@ -2,7 +2,7 @@
   <img src="docs/logo.svg" alt="OpenOSINT" width="200" />
   <h1>OpenOSINT</h1>
   <p><strong>AI-powered OSINT agent. Interactive REPL · CLI · MCP Server · Web UI</strong></p>
-  <p>13 tools. Powered by Anthropic Claude or local Ollama. For authorized security research only.</p>
+  <p>14 tools. Powered by Anthropic Claude or local Ollama. For authorized security research only.</p>
 </div>
 
 <div align="center">
@@ -34,7 +34,7 @@ OpenOSINT is an AI agent for Open Source Intelligence with three interfaces: an 
 ## Features
 
 - **AI tool chaining** — the agent decides which of 13 tools to run, chains them based on findings, and compiles a structured report
-- **13 modular tools** covering email, username, breach, WHOIS, IP, subdomain, dorks, paste, phone, Shodan, VirusTotal, Censys, and IP2Location
+- **14 modular tools** covering email, username, breach, WHOIS, IP, subdomain, dorks, paste, phone, Shodan, VirusTotal, Censys, IP2Location, and AbuseIPDB
 - **Anthropic + Ollama** — use Claude via API key or run fully offline with a local Ollama model
 - **MCP server** — expose all tools natively to Claude Code and Claude Desktop
 - **Parallel execution** — `--parallel` runs complementary tools concurrently via `asyncio.gather()`
@@ -93,6 +93,7 @@ Store all keys in a `.env` file at the project root (copy `.env.example`). `pyth
 | `VIRUSTOTAL_API_KEY` | `search_virustotal` | Optional | VirusTotal API v3 — [get one](https://www.virustotal.com/gui/my-apikey) |
 | `IP2LOCATION_API_KEY` | `search_ip2location` | Optional | IP2Location.io enhanced IP intelligence — [get one](https://www.ip2location.io/pricing) *(sponsored)* |
 | `CENSYS_API_ID` + `CENSYS_SECRET` | `search_censys` | Optional | Censys Search API — [get one](https://censys.io/account) |
+| `ABUSEIPDB_API_KEY` | `search_abuseipdb` | Optional | AbuseIPDB v2 — [get one](https://www.abuseipdb.com/account/api) |
 
 **Optional Python packages:**
 
@@ -120,6 +121,7 @@ Store all keys in a `.env` file at the project root (copy `.env.example`). `pyth
 | `search_virustotal` | VirusTotal API v3 | Verdict from 70+ antivirus engines |
 | `search_ip2location` | IP2Location.io API | Enhanced IP intel: VPN/Proxy/Tor/datacenter flags *(sponsored)* |
 | `search_censys` | Censys Search API | Internet-facing infrastructure, certificates |
+| `search_abuseipdb` | AbuseIPDB v2 API | IP abuse reputation: confidence score, reports, country, ISP |
 
 ### search_email
 
@@ -324,6 +326,30 @@ If a VPN, proxy, or Tor exit node is detected:
 FLAGGED: VPN/Proxy/Tor detected
 ```
 
+### search_abuseipdb
+
+Checks an IP address against the [AbuseIPDB](https://www.abuseipdb.com) v2 API for abuse reputation. Returns abuse confidence score (0–100%), total reports, country, ISP, domain, and last reported timestamp. Requires `ABUSEIPDB_API_KEY`.
+
+```bash
+openosint abuseipdb 198.51.100.1
+openosint abuseipdb 198.51.100.1 -t 30
+```
+
+```text
+Abuse intelligence for '198.51.100.1':
+
+[AbuseIPDB] IP: 198.51.100.1
+[AbuseIPDB] Abuse Confidence Score: 87%
+[AbuseIPDB] Total Reports: 143
+[AbuseIPDB] Country: US
+[AbuseIPDB] ISP: Example ISP LLC
+[AbuseIPDB] Domain: example-isp.net
+[AbuseIPDB] Last Reported: 2026-05-20T14:33:00+00:00
+⚠️  HIGH ABUSE CONFIDENCE — flagged by AbuseIPDB
+```
+
+The warning line only appears when `abuseConfidenceScore` exceeds 50%.
+
 ## Interfaces
 
 ### Interactive REPL
@@ -387,7 +413,7 @@ openosint web
 
 ### MCP Server
 
-Expose all 13 OpenOSINT tools to any MCP-compatible AI client. Once connected, Claude can natively invoke all 13 tools during conversations.
+Expose all 14 OpenOSINT tools to any MCP-compatible AI client. Once connected, Claude can natively invoke all 14 tools during conversations.
 
 **Claude Code:**
 
@@ -443,6 +469,7 @@ Set `ANTHROPIC_API_KEY` (and optionally `HIBP_API_KEY`, `IPINFO_TOKEN`) in a `.e
 | `openosint virustotal TARGET [-t N]` | VirusTotal lookup |
 | `openosint censys TARGET [-t N]` | Censys lookup |
 | `openosint ip2location IP [-t N]` | IP2Location lookup |
+| `openosint abuseipdb IP [-t N]` | AbuseIPDB reputation check |
 | `openosint multi TARGETS` | Parallel multi-target investigation (max 10) |
 | `openosint history [--all] [open N] [clear]` | View/manage REPL session history |
 | `-v, --verbose` | Enable debug logging to stderr |
@@ -454,6 +481,18 @@ Set `ANTHROPIC_API_KEY` (and optionally `HIBP_API_KEY`, `IPINFO_TOKEN`) in a `.e
 | `--ollama-model MODEL` | Ollama model name (default: `llama3.2`) |
 | `--ollama-host URL` | Ollama server URL (default: `http://localhost:11434`) |
 | `--no-pdf` | Disable automatic PDF generation |
+
+## Integrations
+
+| Service | URL | Tool |
+|---------|-----|------|
+| HaveIBeenPwned | https://haveibeenpwned.com | `search_breach` |
+| ipinfo.io | https://ipinfo.io | `search_ip` |
+| Shodan | https://shodan.io | `search_shodan` |
+| VirusTotal | https://www.virustotal.com | `search_virustotal` |
+| Censys | https://censys.io | `search_censys` |
+| IP2Location.io | https://www.ip2location.io | `search_ip2location` *(sponsored)* |
+| AbuseIPDB | https://www.abuseipdb.com | `search_abuseipdb` |
 
 ## Sponsors
 
@@ -480,7 +519,7 @@ MIT — see [LICENSE](LICENSE).
 
 *For authorized security research only. See [DISCLAIMER.md](DISCLAIMER.md).*
 
-*OpenOSINT v2.13.0 — May 2026*
+*OpenOSINT v2.14.0 — May 2026*
 
 ## Star History
 

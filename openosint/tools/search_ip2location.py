@@ -55,9 +55,7 @@ def _fetch_ip2location_data(ip: str, api_key: str, timeout: int) -> dict:
     if response.status_code == 429:
         raise OSINTError("IP2Location: rate limit exceeded.")
     if response.status_code != 200:
-        raise ToolExecutionError(
-            f"IP2Location returned HTTP {response.status_code}."
-        )
+        raise ToolExecutionError(f"IP2Location returned HTTP {response.status_code}.")
 
     return response.json()
 

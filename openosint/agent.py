@@ -22,6 +22,7 @@ from typing import Any
 import anthropic
 
 from openosint.tools.generate_dorks import run_dork_osint
+from openosint.tools.search_abuseipdb import run_abuseipdb_osint
 from openosint.tools.search_breach import run_breach_osint
 from openosint.tools.search_censys import run_censys_osint
 from openosint.tools.search_domain import run_domain_osint
@@ -52,9 +53,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         ),
         "input_schema": {
             "type": "object",
-            "properties": {
-                "email": {"type": "string", "description": "Target email address."}
-            },
+            "properties": {"email": {"type": "string", "description": "Target email address."}},
             "required": ["email"],
         },
     },
@@ -80,9 +79,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         ),
         "input_schema": {
             "type": "object",
-            "properties": {
-                "email": {"type": "string", "description": "Target email address."}
-            },
+            "properties": {"email": {"type": "string", "description": "Target email address."}},
             "required": ["email"],
         },
     },
@@ -102,9 +99,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "description": "Retrieve geolocation, ASN, and hostname data for an IP address.",
         "input_schema": {
             "type": "object",
-            "properties": {
-                "ip": {"type": "string", "description": "Target IP address."}
-            },
+            "properties": {"ip": {"type": "string", "description": "Target IP address."}},
             "required": ["ip"],
         },
     },
@@ -154,8 +149,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "search_phone",
         "description": (
-            "Gather carrier, country, and line type data for a phone number. "
-            "Use E.164 format."
+            "Gather carrier, country, and line type data for a phone number. Use E.164 format."
         ),
         "input_schema": {
             "type": "object",
@@ -245,6 +239,26 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["ip"],
         },
     },
+    {
+        "name": "search_abuseipdb",
+        "description": (
+            "Check an IP address against the AbuseIPDB v2 API for abuse reputation. "
+            "Returns abuse confidence score (0–100%), total reports, country, ISP, domain, "
+            "and last reported timestamp. Use this when investigating suspicious IPs "
+            "to determine if they are known attackers, spammers, or malicious actors. "
+            "Requires ABUSEIPDB_API_KEY."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ip": {
+                    "type": "string",
+                    "description": "Target IPv4 or IPv6 address.",
+                }
+            },
+            "required": ["ip"],
+        },
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -252,19 +266,20 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 
 _TOOL_MAP: dict[str, Any] = {
-    "search_email":        lambda a: run_email_osint(a["email"], timeout_seconds=120),
-    "search_username":     lambda a: run_username_osint(a["username"], timeout_seconds=180),
-    "search_breach":       lambda a: run_breach_osint(a["email"], timeout_seconds=15),
-    "search_whois":        lambda a: run_whois_osint(a["domain"], timeout_seconds=15),
-    "search_ip":           lambda a: run_ip_osint(a["ip"], timeout_seconds=10),
-    "search_domain":       lambda a: run_domain_osint(a["domain"], timeout_seconds=120),
-    "generate_dorks":      lambda a: run_dork_osint(a["target"]),
-    "search_paste":        lambda a: run_paste_osint(a["query"], timeout_seconds=15),
-    "search_phone":        lambda a: run_phone_osint(a["phone"], timeout_seconds=60),
-    "search_shodan":       lambda a: run_shodan_osint(a["query"], timeout_seconds=30),
-    "search_virustotal":   lambda a: run_virustotal_osint(a["target"], timeout_seconds=30),
-    "search_censys":       lambda a: run_censys_osint(a["target"], timeout_seconds=30),
-    "search_ip2location":  lambda a: run_ip2location_osint(a["ip"], timeout_seconds=30),
+    "search_email": lambda a: run_email_osint(a["email"], timeout_seconds=120),
+    "search_username": lambda a: run_username_osint(a["username"], timeout_seconds=180),
+    "search_breach": lambda a: run_breach_osint(a["email"], timeout_seconds=15),
+    "search_whois": lambda a: run_whois_osint(a["domain"], timeout_seconds=15),
+    "search_ip": lambda a: run_ip_osint(a["ip"], timeout_seconds=10),
+    "search_domain": lambda a: run_domain_osint(a["domain"], timeout_seconds=120),
+    "generate_dorks": lambda a: run_dork_osint(a["target"]),
+    "search_paste": lambda a: run_paste_osint(a["query"], timeout_seconds=15),
+    "search_phone": lambda a: run_phone_osint(a["phone"], timeout_seconds=60),
+    "search_shodan": lambda a: run_shodan_osint(a["query"], timeout_seconds=30),
+    "search_virustotal": lambda a: run_virustotal_osint(a["target"], timeout_seconds=30),
+    "search_censys": lambda a: run_censys_osint(a["target"], timeout_seconds=30),
+    "search_ip2location": lambda a: run_ip2location_osint(a["ip"], timeout_seconds=30),
+    "search_abuseipdb": lambda a: run_abuseipdb_osint(a["ip"], timeout_seconds=30),
 }
 
 SYSTEM_PROMPT = """You are OpenOSINT, an expert OSINT analyst assistant running in a terminal.
@@ -275,6 +290,7 @@ INVESTIGATION STRATEGY:
 - For a username: run search_username and search_paste.
 - For a domain: run search_whois and search_domain.
 - For an IP: run search_ip and optionally search_shodan or search_censys for open ports/services.
+- For IP reputation/abuse: use search_abuseipdb to get the abuseConfidenceScore — a score above 50% indicates a high-risk IP; combine with search_ip or search_shodan for full context.
 - For a domain or IP infrastructure: use search_censys for certificate history and port data.
 - For a Shodan query or banners: use search_shodan.
 - Chain tools intelligently: use findings from each step to decide the next.
@@ -299,9 +315,11 @@ CRITICAL RULES:
 # Dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ToolCall:
     """Represents a single tool invocation during the agent loop."""
+
     name: str
     input: dict[str, Any]
     result: str = ""
@@ -310,6 +328,7 @@ class ToolCall:
 @dataclass
 class AgentResponse:
     """Complete response from one agent turn."""
+
     content: str
     tool_calls: list[ToolCall] = field(default_factory=list)
     error: str = ""
@@ -318,6 +337,7 @@ class AgentResponse:
 @dataclass
 class _AgentRunContext:
     """Mutable state threaded through one agent turn."""
+
     messages: list[dict[str, Any]]
     tool_calls: list[ToolCall]
     on_tool_call: Any
@@ -326,6 +346,7 @@ class _AgentRunContext:
 # ---------------------------------------------------------------------------
 # Shared turn helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_first_text(content: list[Any]) -> str:
     """Return text from the first text block in an Anthropic content list."""
@@ -360,11 +381,13 @@ async def _process_tool_turn(
         result = await _execute_tool(block.name, block.input, ctx.on_tool_call)
         ctx.tool_calls.append(ToolCall(name=block.name, input=block.input, result=result))
         logger.info("Tool executed: %s → %d chars", block.name, len(result))
-        tool_results.append({
-            "type": "tool_result",
-            "tool_use_id": block.id,
-            "content": result,
-        })
+        tool_results.append(
+            {
+                "type": "tool_result",
+                "tool_use_id": block.id,
+                "content": result,
+            }
+        )
     ctx.messages.append({"role": "user", "content": tool_results})
 
 
@@ -403,6 +426,7 @@ async def _process_ollama_tool_turn(
 # ---------------------------------------------------------------------------
 # Anthropic agent
 # ---------------------------------------------------------------------------
+
 
 class OpenOSINTAgent:
     """
@@ -460,8 +484,8 @@ class OpenOSINTAgent:
                     model=self.model,
                     max_tokens=_MAX_TOKENS,
                     system=SYSTEM_PROMPT,
-                    tools=TOOL_DEFINITIONS,
-                    messages=ctx.messages,
+                    tools=TOOL_DEFINITIONS,  # type: ignore[arg-type]
+                    messages=ctx.messages,  # type: ignore[arg-type]
                 )
                 if response.stop_reason == "end_turn":
                     text = _extract_first_text(response.content)
@@ -491,6 +515,7 @@ class OpenOSINTAgent:
 # ---------------------------------------------------------------------------
 # Ollama agent
 # ---------------------------------------------------------------------------
+
 
 def _to_ollama_tools(defs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Convert Anthropic-format tool definitions to Ollama/OpenAI format."""
@@ -559,10 +584,7 @@ class OllamaAgent:
         except ImportError:
             return AgentResponse(
                 content="",
-                error=(
-                    "'ollama' library is not installed. "
-                    "Install it with: pip install ollama"
-                ),
+                error=("'ollama' library is not installed. Install it with: pip install ollama"),
             )
 
         self.history.append({"role": "user", "content": prompt})

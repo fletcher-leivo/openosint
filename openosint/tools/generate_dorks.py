@@ -36,6 +36,7 @@ _GOOGLE_BASE = "https://www.google.com/search?q="
 # Public API
 # ---------------------------------------------------------------------------
 
+
 async def run_dork_osint(target: str) -> str:
     """
     Generate Google dork URLs for *target*.

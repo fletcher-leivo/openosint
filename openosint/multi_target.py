@@ -27,6 +27,7 @@ MAX_TARGETS = 10
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def parse_targets(source: str) -> list[str]:
     """
     Parse a target list from *source*.
@@ -100,6 +101,7 @@ def _build_summary(results: list[tuple[str, AgentResponse]], date_prefix: str) -
 # Public API
 # ---------------------------------------------------------------------------
 
+
 async def run_multi_target(
     targets: list[str],
     api_key: str | None = None,
@@ -140,10 +142,7 @@ async def run_multi_target(
     reports_dir.mkdir(exist_ok=True)
     date_prefix = datetime.now().strftime("%Y-%m-%d")
 
-    tasks = [
-        _investigate_one(target, api_key, reports_dir, date_prefix)
-        for target in targets
-    ]
+    tasks = [_investigate_one(target, api_key, reports_dir, date_prefix) for target in targets]
     results: list[tuple[str, AgentResponse]] = await asyncio.gather(*tasks)
 
     summary = _build_summary(results, date_prefix)
@@ -155,6 +154,7 @@ async def run_multi_target(
     if not is_pdf_disabled:
         try:
             from openosint.pdf_report import generate_pdf_report
+
             await generate_pdf_report(summary_path)
         except Exception:
             logger.debug("PDF skipped for summary.", exc_info=True)

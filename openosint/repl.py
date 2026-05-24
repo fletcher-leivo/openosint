@@ -42,16 +42,16 @@ logger = logging.getLogger(__name__)
 _MIN_REPORT_CHARS = 300
 
 _TOOL_INFO_ROWS = [
-    ("search_email",    "holehe",          "Social accounts linked to an email"),
-    ("search_username", "sherlock",         "Accounts across 300+ platforms"),
-    ("search_breach",   "HaveIBeenPwned",  "Data breach exposure"),
-    ("search_whois",    "python-whois",     "Domain registrant info"),
-    ("search_ip",       "ipinfo.io",        "Geolocation, ASN, hostname"),
-    ("search_domain",   "sublist3r",        "Subdomain enumeration"),
-    ("generate_dorks",  "built-in",         "Google dork URLs"),
-    ("search_paste",    "psbdmp.ws",        "Pastebin dump mentions"),
-    ("search_phone",    "phoneinfoga",      "Carrier, country, line type"),
-    ("search_shodan",   "Shodan API",       "Open ports, banners, CVEs"),
+    ("search_email", "holehe", "Social accounts linked to an email"),
+    ("search_username", "sherlock", "Accounts across 300+ platforms"),
+    ("search_breach", "HaveIBeenPwned", "Data breach exposure"),
+    ("search_whois", "python-whois", "Domain registrant info"),
+    ("search_ip", "ipinfo.io", "Geolocation, ASN, hostname"),
+    ("search_domain", "sublist3r", "Subdomain enumeration"),
+    ("generate_dorks", "built-in", "Google dork URLs"),
+    ("search_paste", "psbdmp.ws", "Pastebin dump mentions"),
+    ("search_phone", "phoneinfoga", "Carrier, country, line type"),
+    ("search_shodan", "Shodan API", "Open ports, banners, CVEs"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -64,14 +64,17 @@ console = Console()
 # Prompt style
 # ---------------------------------------------------------------------------
 
-PROMPT_STYLE = Style.from_dict({
-    "prompt":      "#00ff88 bold",
-    "prompt-text": "#f1f5f9",
-})
+PROMPT_STYLE = Style.from_dict(
+    {
+        "prompt": "#00ff88 bold",
+        "prompt-text": "#f1f5f9",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Display helpers
 # ---------------------------------------------------------------------------
+
 
 def _print_banner(provider: str, model: str) -> None:
     if provider == "ollama":
@@ -80,15 +83,15 @@ def _print_banner(provider: str, model: str) -> None:
         provider_info = f"[dim]Provider: Anthropic ({model})[/]"
 
     console.print()
-    console.print(Panel.fit(
-        f"[bold #00ff88]OpenOSINT[/] [dim]v2.8.0[/]  [dim]·[/]  {provider_info}",
-        border_style="#1e293b",
-        padding=(0, 2),
-    ))
     console.print(
-        "  Type a target or question. "
-        "[dim]'help'[/] for commands. "
-        "[dim]'exit'[/] to quit.\n"
+        Panel.fit(
+            f"[bold #00ff88]OpenOSINT[/] [dim]v2.8.0[/]  [dim]·[/]  {provider_info}",
+            border_style="#1e293b",
+            padding=(0, 2),
+        )
+    )
+    console.print(
+        "  Type a target or question. [dim]'help'[/] for commands. [dim]'exit'[/] to quit.\n"
     )
     Console(stderr=True).print(
         "[yellow]⭐[/] [dim]If OpenOSINT is useful, star it → https://github.com/OpenOSINT/OpenOSINT[/]"
@@ -97,36 +100,41 @@ def _print_banner(provider: str, model: str) -> None:
 
 def _print_help() -> None:
     console.print()
-    console.print(Panel(
-        "\n".join([
-            "[bold]Commands:[/]",
-            "",
-            "  [#00ff88]<target>[/]          Investigate any target (email, username, domain, IP, name)",
-            "  [#00ff88]clear[/]             Clear conversation memory",
-            "  [#00ff88]save[/]              Save last report to reports/",
-            "  [#00ff88]tools[/]             List available OSINT tools",
-            "  [#00ff88]config[/]            Show current configuration",
-            "  [#00ff88]history[/]           Browse saved session history",
-            "  [#00ff88]help[/]              Show this message",
-            "  [#00ff88]exit[/] / Ctrl-D     Exit",
-            "",
-            "[bold]Examples:[/]",
-            "",
-            "  openosint ❯ investigate target@example.com",
-            "  openosint ❯ find all accounts for johndoe99",
-            "  openosint ❯ what subdomains does example.com have?",
-            "  openosint ❯ check if +14155552671 is a mobile number",
-            "  openosint ❯ shodan search for apache servers in Berlin",
-        ]),
-        title="[bold]Help[/]",
-        border_style="#1e293b",
-        padding=(0, 2),
-    ))
+    console.print(
+        Panel(
+            "\n".join(
+                [
+                    "[bold]Commands:[/]",
+                    "",
+                    "  [#00ff88]<target>[/]          Investigate any target (email, username, domain, IP, name)",
+                    "  [#00ff88]clear[/]             Clear conversation memory",
+                    "  [#00ff88]save[/]              Save last report to reports/",
+                    "  [#00ff88]tools[/]             List available OSINT tools",
+                    "  [#00ff88]config[/]            Show current configuration",
+                    "  [#00ff88]history[/]           Browse saved session history",
+                    "  [#00ff88]help[/]              Show this message",
+                    "  [#00ff88]exit[/] / Ctrl-D     Exit",
+                    "",
+                    "[bold]Examples:[/]",
+                    "",
+                    "  openosint ❯ investigate target@example.com",
+                    "  openosint ❯ find all accounts for johndoe99",
+                    "  openosint ❯ what subdomains does example.com have?",
+                    "  openosint ❯ check if +14155552671 is a mobile number",
+                    "  openosint ❯ shodan search for apache servers in Berlin",
+                ]
+            ),
+            title="[bold]Help[/]",
+            border_style="#1e293b",
+            padding=(0, 2),
+        )
+    )
     console.print()
 
 
 def _print_tools() -> None:
     from rich.table import Table
+
     table = Table(
         box=box.SIMPLE_HEAD,
         border_style="#1e293b",
@@ -152,21 +160,25 @@ def _print_tool_call(name: str, args: dict[str, Any]) -> None:
 
 def _print_result(content: str) -> None:
     console.print()
-    console.print(Panel(
-        Markdown(content),
-        border_style="#00ff88",
-        padding=(1, 2),
-    ))
+    console.print(
+        Panel(
+            Markdown(content),
+            border_style="#00ff88",
+            padding=(1, 2),
+        )
+    )
     console.print()
 
 
 def _print_error(message: str) -> None:
     console.print()
-    console.print(Panel(
-        f"[bold red]Error:[/] {message}",
-        border_style="red",
-        padding=(0, 2),
-    ))
+    console.print(
+        Panel(
+            f"[bold red]Error:[/] {message}",
+            border_style="red",
+            padding=(0, 2),
+        )
+    )
     console.print()
 
 
@@ -191,18 +203,21 @@ def _print_config(
         f"[bold]PDF:[/]      {'disabled' if is_pdf_disabled else 'enabled'}",
     ]
     console.print()
-    console.print(Panel(
-        "\n".join(rows),
-        title="[bold]Configuration[/]",
-        border_style="#1e293b",
-        padding=(0, 2),
-    ))
+    console.print(
+        Panel(
+            "\n".join(rows),
+            title="[bold]Configuration[/]",
+            border_style="#1e293b",
+            padding=(0, 2),
+        )
+    )
     console.print()
 
 
 # ---------------------------------------------------------------------------
 # Report saver
 # ---------------------------------------------------------------------------
+
 
 def _save_report(content: str) -> Path:
     reports_dir = Path("reports")
@@ -216,6 +231,7 @@ def _save_report(content: str) -> Path:
 # ---------------------------------------------------------------------------
 # REPL
 # ---------------------------------------------------------------------------
+
 
 class OpenOSINTRepl:
     """Interactive REPL session."""
@@ -303,6 +319,7 @@ class OpenOSINTRepl:
     async def _generate_pdf(self, md_path: Path) -> None:
         try:
             from openosint.pdf_report import generate_pdf_report
+
             pdf_path = await generate_pdf_report(md_path)
             if pdf_path:
                 console.print(f"  [dim]✓ PDF saved     → {pdf_path}[/]")
@@ -313,6 +330,7 @@ class OpenOSINTRepl:
         if not self._session_prompts:
             return
         from openosint.session_history import SessionRecord, save_session
+
         duration = int((datetime.now() - self._session_start).total_seconds())
         record = SessionRecord(
             timestamp=self._session_start.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -340,6 +358,7 @@ class OpenOSINTRepl:
         _print_banner(self._provider, self._display_model)
 
         from openosint.session_history import count_sessions
+
         n = count_sessions()
         if n > 0:
             s = "s" if n != 1 else ""
@@ -397,6 +416,7 @@ class OpenOSINTRepl:
 
                 if user_input.lower() == "history":
                     from openosint.session_history import display_history_table, load_sessions
+
                     display_history_table(load_sessions(limit=10), console)
                     continue
 
@@ -408,6 +428,7 @@ class OpenOSINTRepl:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def run_repl(
     api_key: str | None = None,

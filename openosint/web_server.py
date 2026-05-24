@@ -207,19 +207,19 @@ _TOOL_CATALOG: list[dict] = [
 
 # Map tool name → async callable(input_value: str, timeout: int) -> str
 _RUNNERS: dict[str, object] = {
-    "search_email":       lambda v, t: run_email_osint(v, timeout_seconds=t),
-    "search_username":    lambda v, t: run_username_osint(v, timeout_seconds=t),
-    "search_breach":      lambda v, t: run_breach_osint(v, timeout_seconds=t),
-    "search_whois":       lambda v, t: run_whois_osint(v, timeout_seconds=t),
-    "search_ip":          lambda v, t: run_ip_osint(v, timeout_seconds=t),
-    "search_domain":      lambda v, t: run_domain_osint(v, timeout_seconds=t),
+    "search_email": lambda v, t: run_email_osint(v, timeout_seconds=t),
+    "search_username": lambda v, t: run_username_osint(v, timeout_seconds=t),
+    "search_breach": lambda v, t: run_breach_osint(v, timeout_seconds=t),
+    "search_whois": lambda v, t: run_whois_osint(v, timeout_seconds=t),
+    "search_ip": lambda v, t: run_ip_osint(v, timeout_seconds=t),
+    "search_domain": lambda v, t: run_domain_osint(v, timeout_seconds=t),
     "search_ip2location": lambda v, t: run_ip2location_osint(v, timeout_seconds=t),
-    "generate_dorks":     lambda v, _t: run_dork_osint(v),
-    "search_paste":       lambda v, t: run_paste_osint(v, timeout_seconds=t),
-    "search_phone":       lambda v, t: run_phone_osint(v, timeout_seconds=t),
-    "search_shodan":      lambda v, t: run_shodan_osint(v, timeout_seconds=t),
-    "search_virustotal":  lambda v, t: run_virustotal_osint(v, timeout_seconds=t),
-    "search_censys":      lambda v, t: run_censys_osint(v, timeout_seconds=t),
+    "generate_dorks": lambda v, _t: run_dork_osint(v),
+    "search_paste": lambda v, t: run_paste_osint(v, timeout_seconds=t),
+    "search_phone": lambda v, t: run_phone_osint(v, timeout_seconds=t),
+    "search_shodan": lambda v, t: run_shodan_osint(v, timeout_seconds=t),
+    "search_virustotal": lambda v, t: run_virustotal_osint(v, timeout_seconds=t),
+    "search_censys": lambda v, t: run_censys_osint(v, timeout_seconds=t),
 }
 
 # Claude tool schemas (one string "input" param per tool)
@@ -257,9 +257,16 @@ def _check_available(meta: dict) -> tuple[bool, str | None]:
 
 
 _KNOWN_ENV_KEYS = [
-    "ANTHROPIC_API_KEY", "HIBP_API_KEY", "IPINFO_TOKEN", "IP2LOCATION_API_KEY",
-    "CENSYS_API_ID", "CENSYS_SECRET", "SHODAN_API_KEY", "VIRUSTOTAL_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "HIBP_API_KEY",
+    "IPINFO_TOKEN",
+    "IP2LOCATION_API_KEY",
+    "CENSYS_API_ID",
+    "CENSYS_SECRET",
+    "SHODAN_API_KEY",
+    "VIRUSTOTAL_API_KEY",
 ]
+
 
 def _is_setup_complete() -> bool:
     if (_ROOT / ".env").exists():
@@ -297,6 +304,7 @@ class ChatRequest(BaseModel):
 # AI chat streaming helpers
 # ---------------------------------------------------------------------------
 
+
 async def _run_tool(tool_name: str, tool_input: str, timeout: int = 120) -> str:
     if tool_name not in _RUNNERS:
         return f"Unknown tool: {tool_name}"
@@ -311,7 +319,10 @@ async def _stream_claude(messages: list[dict]) -> AsyncIterator[dict]:
     try:
         import anthropic as _anthropic
     except ImportError:
-        yield {"type": "error", "message": "anthropic package not installed. Run: pip install anthropic"}
+        yield {
+            "type": "error",
+            "message": "anthropic package not installed. Run: pip install anthropic",
+        }
         return
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
@@ -370,7 +381,11 @@ async def _stream_claude(messages: list[dict]) -> AsyncIterator[dict]:
 
                     elif etype == "content_block_delta":
                         d = event.delta
-                        if d.type == "text_delta" and current_block and current_block["type"] == "text":
+                        if (
+                            d.type == "text_delta"
+                            and current_block
+                            and current_block["type"] == "text"
+                        ):
                             current_block["text"] += d.text
                             yield {"type": "text", "content": d.text}
                         elif d.type == "input_json_delta":
@@ -379,7 +394,9 @@ async def _stream_claude(messages: list[dict]) -> AsyncIterator[dict]:
                     elif etype == "content_block_stop":
                         if current_block and current_block["type"] == "tool_use":
                             try:
-                                input_data = json.loads(current_tool_json) if current_tool_json else {}
+                                input_data = (
+                                    json.loads(current_tool_json) if current_tool_json else {}
+                                )
                             except Exception:
                                 input_data = {"input": current_tool_json}
                             current_block["input"] = input_data
@@ -392,18 +409,29 @@ async def _stream_claude(messages: list[dict]) -> AsyncIterator[dict]:
                                     str(input_data),
                                 )
 
-                            yield {"type": "tool_start", "tool": tool_name, "input": str(tool_input)}
+                            yield {
+                                "type": "tool_start",
+                                "tool": tool_name,
+                                "input": str(tool_input),
+                            }
 
                             t0 = time.monotonic()
                             result = await _run_tool(tool_name, str(tool_input))
                             elapsed = round(time.monotonic() - t0, 2)
 
-                            yield {"type": "tool_result", "tool": tool_name, "output": result, "elapsed": elapsed}
-                            pending_tool_results.append({
+                            yield {
                                 "type": "tool_result",
-                                "tool_use_id": current_block["id"],
-                                "content": result,
-                            })
+                                "tool": tool_name,
+                                "output": result,
+                                "elapsed": elapsed,
+                            }
+                            pending_tool_results.append(
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": current_block["id"],
+                                    "content": result,
+                                }
+                            )
 
                         current_block = None
                         current_tool_json = ""
@@ -426,7 +454,9 @@ async def _stream_claude(messages: list[dict]) -> AsyncIterator[dict]:
     yield {"type": "done"}
 
 
-async def _stream_ollama(messages: list[dict], ollama_host: str, ollama_model: str) -> AsyncIterator[dict]:
+async def _stream_ollama(
+    messages: list[dict], ollama_host: str, ollama_model: str
+) -> AsyncIterator[dict]:
     """Yield SSE event dicts using Ollama chat API with tool_use."""
     host = ollama_host.rstrip("/")
     msgs = list(messages)
@@ -455,7 +485,10 @@ async def _stream_ollama(messages: list[dict], ollama_host: str, ollama_model: s
                 async with _httpx.AsyncClient(timeout=120) as client:
                     r = await client.post(f"{host}/api/chat", json=payload)
                 if r.status_code != 200:
-                    yield {"type": "error", "message": f"Ollama returned HTTP {r.status_code}: {r.text[:200]}"}
+                    yield {
+                        "type": "error",
+                        "message": f"Ollama returned HTTP {r.status_code}: {r.text[:200]}",
+                    }
                     return
                 data = r.json()
             else:
@@ -465,7 +498,10 @@ async def _stream_ollama(messages: list[dict], ollama_host: str, ollama_model: s
                     lambda: _requests.post(f"{host}/api/chat", json=_payload, timeout=120)
                 )
                 if raw.status_code != 200:
-                    yield {"type": "error", "message": f"Ollama returned HTTP {raw.status_code}: {raw.text[:200]}"}
+                    yield {
+                        "type": "error",
+                        "message": f"Ollama returned HTTP {raw.status_code}: {raw.text[:200]}",
+                    }
                     return
                 data = raw.json()
         except Exception as exc:
@@ -494,7 +530,9 @@ async def _stream_ollama(messages: list[dict], ollama_host: str, ollama_model: s
                     raw_args = {"input": raw_args}
             tool_input = raw_args.get("input", "")
             if not tool_input and raw_args:
-                tool_input = next((v for v in raw_args.values() if isinstance(v, str)), str(raw_args))
+                tool_input = next(
+                    (v for v in raw_args.values() if isinstance(v, str)), str(raw_args)
+                )
 
             yield {"type": "tool_start", "tool": tool_name, "input": str(tool_input)}
 
@@ -505,7 +543,11 @@ async def _stream_ollama(messages: list[dict], ollama_host: str, ollama_model: s
             yield {"type": "tool_result", "tool": tool_name, "output": result, "elapsed": elapsed}
             tool_results_for_next.append({"role": "tool", "content": result})
 
-        msgs = msgs + [{"role": "assistant", "content": content, "tool_calls": tool_calls}] + tool_results_for_next
+        msgs = (
+            msgs
+            + [{"role": "assistant", "content": content, "tool_calls": tool_calls}]
+            + tool_results_for_next
+        )
 
     yield {"type": "done"}
 
@@ -513,6 +555,7 @@ async def _stream_ollama(messages: list[dict], ollama_host: str, ollama_model: s
 # ---------------------------------------------------------------------------
 # Demo chat — pre-scripted SSE stream, no API key required
 # ---------------------------------------------------------------------------
+
 
 async def _demo_chat_stream(message: str) -> AsyncIterator[dict]:
     """Yield scripted SSE events that look like a real investigation."""
@@ -645,6 +688,7 @@ async def _demo_chat_stream(message: str) -> AsyncIterator[dict]:
 # App factory
 # ---------------------------------------------------------------------------
 
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="OpenOSINT",
@@ -685,16 +729,18 @@ def create_app() -> FastAPI:
         result = []
         for meta in _TOOL_CATALOG:
             available, reason = _check_available(meta)
-            result.append({
-                "name": meta["name"],
-                "description": meta["description"],
-                "input_label": meta["input_label"],
-                "input_placeholder": meta["input_placeholder"],
-                "category": meta["category"],
-                "icon": meta.get("icon", ""),
-                "available": available,
-                "unavailable_reason": reason,
-            })
+            result.append(
+                {
+                    "name": meta["name"],
+                    "description": meta["description"],
+                    "input_label": meta["input_label"],
+                    "input_placeholder": meta["input_placeholder"],
+                    "category": meta["category"],
+                    "icon": meta.get("icon", ""),
+                    "available": available,
+                    "unavailable_reason": reason,
+                }
+            )
         return result
 
     # ------------------------------------------------------------------
@@ -705,8 +751,12 @@ def create_app() -> FastAPI:
     async def run_tool(tool_name: str, req: RunRequest):
         if tool_name not in _RUNNERS:
             return JSONResponse(
-                {"status": "error", "output": f"Unknown tool: {tool_name}",
-                 "tool": tool_name, "elapsed": 0},
+                {
+                    "status": "error",
+                    "output": f"Unknown tool: {tool_name}",
+                    "tool": tool_name,
+                    "elapsed": 0,
+                },
                 status_code=404,
             )
         start = time.monotonic()
@@ -728,13 +778,17 @@ def create_app() -> FastAPI:
     @app.get("/api/stream/{tool_name}")
     async def stream_tool(request: Request, tool_name: str, input: str, timeout: int = 120):
         if tool_name not in _RUNNERS:
+
             async def _err() -> AsyncIterator[dict]:
                 yield {"data": json.dumps({"line": f"Unknown tool: {tool_name}", "done": False})}
                 yield {"data": json.dumps({"line": "", "done": True, "elapsed": 0})}
+
             return EventSourceResponse(_err(), ping=15)
 
         async def event_gen() -> AsyncIterator[dict]:
-            yield {"data": json.dumps({"line": f"[*] Running {tool_name} on: {input}", "done": False})}
+            yield {
+                "data": json.dumps({"line": f"[*] Running {tool_name} on: {input}", "done": False})
+            }
             yield {"data": json.dumps({"line": "", "done": False})}
             start = time.monotonic()
             try:
@@ -889,9 +943,11 @@ def create_app() -> FastAPI:
 # Entry points (called from cli.py)
 # ---------------------------------------------------------------------------
 
+
 async def serve_async(host: str = "0.0.0.0", port: int = 8080) -> None:
     """Run uvicorn within an already-running asyncio event loop."""
     from dotenv import load_dotenv
+
     load_dotenv()
     app = create_app()
     _print_banner(host, port)
@@ -903,6 +959,7 @@ async def serve_async(host: str = "0.0.0.0", port: int = 8080) -> None:
 def run_server(host: str = "0.0.0.0", port: int = 8080) -> None:
     """Standalone blocking entry point."""
     from dotenv import load_dotenv
+
     load_dotenv()
     app = create_app()
     _print_banner(host, port)

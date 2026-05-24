@@ -56,9 +56,7 @@ async def run_subprocess(
     """
     if not shutil.which(binary):
         detail = f" {install_hint}" if install_hint else ""
-        raise ToolNotFoundError(
-            f"'{binary}' is not installed or not in PATH.{detail}"
-        )
+        raise ToolNotFoundError(f"'{binary}' is not installed or not in PATH.{detail}")
 
     process: asyncio.subprocess.Process | None = None
     try:
@@ -79,9 +77,7 @@ async def run_subprocess(
         )
     except asyncio.TimeoutError:
         _kill_process(process)
-        raise ToolTimeoutError(
-            f"'{binary}' scan timed out after {timeout_seconds}s."
-        )
+        raise ToolTimeoutError(f"'{binary}' scan timed out after {timeout_seconds}s.")
 
 
 def _kill_process(process: asyncio.subprocess.Process | None) -> None:

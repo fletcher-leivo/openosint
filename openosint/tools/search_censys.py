@@ -29,6 +29,7 @@ _IP_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _is_ip_address(target: str) -> bool:
     """Return True when target looks like an IPv4 address."""
     return bool(_IP_RE.match(target.strip()))
@@ -114,6 +115,7 @@ def _format_domain_result(results: list, domain: str) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 async def run_censys_osint(target: str, timeout_seconds: int = _DEFAULT_TIMEOUT) -> str:
     """
     Run a Censys lookup for *target*.
@@ -145,10 +147,7 @@ async def run_censys_osint(target: str, timeout_seconds: int = _DEFAULT_TIMEOUT)
     try:
         from censys.search import CensysHosts  # type: ignore
     except ImportError:
-        return (
-            "Scan error: 'censys' library is not installed. "
-            "Install it with: pip install censys"
-        )
+        return "Scan error: 'censys' library is not installed. Install it with: pip install censys"
 
     target = target.strip()
     logger.info("Starting Censys lookup for: %s", target)
@@ -161,18 +160,21 @@ async def run_censys_osint(target: str, timeout_seconds: int = _DEFAULT_TIMEOUT)
         else:
             try:
                 from censys.search import CensysCerts  # type: ignore
+
                 certs = CensysCerts(api_id=api_id, api_secret=api_secret)
                 query = f"parsed.names: {target}"
-                search_results: list = list(certs.search(
-                    query,
-                    fields=[
-                        "parsed.names",
-                        "parsed.issuer.organization",
-                        "parsed.validity.start",
-                        "parsed.validity.end",
-                    ],
-                    max_records=50,
-                ))
+                search_results: list = list(
+                    certs.search(
+                        query,
+                        fields=[
+                            "parsed.names",
+                            "parsed.issuer.organization",
+                            "parsed.validity.start",
+                            "parsed.validity.end",
+                        ],
+                        max_records=50,
+                    )
+                )
             except ImportError:
                 hosts = CensysHosts(api_id=api_id, api_secret=api_secret)
                 search_results = list(

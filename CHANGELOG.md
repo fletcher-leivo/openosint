@@ -7,6 +7,27 @@ OpenOSINT adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [2.14.0] — 2026-05-24
+
+### Added
+
+- **AbuseIPDB integration** (`openosint/tools/search_abuseipdb.py`): new tool
+  `search_abuseipdb` that checks an IP address against the AbuseIPDB v2 API.
+  Returns abuse confidence score (0–100%), total reports, country, ISP, domain,
+  and last reported timestamp. Displays a prominent ⚠️ HIGH ABUSE CONFIDENCE
+  warning when score exceeds 50%. Validates IPv4/IPv6 input before calling the
+  API; returns a descriptive error string for invalid input or missing credentials.
+  Requires `ABUSEIPDB_API_KEY` environment variable. Available as CLI subcommand
+  `openosint abuseipdb IP_ADDRESS [-t SECONDS]`, in the AI agent tool loop, and
+  as an MCP tool.
+
+### Changed
+
+- Version bumped to 2.14.0 in `pyproject.toml`, `README.md`, MCP server docstring.
+- `aiohttp>=3.9.0` added to core dependencies.
+
+---
+
 ## [2.13.0] — 2026-05-21
 
 ### Changed

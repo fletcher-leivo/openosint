@@ -29,9 +29,7 @@ async def _run_sublist3r(domain: str, timeout_seconds: int) -> str:
         install_hint=_INSTALL_HINT,
     )
     if not result.stdout:
-        raise ToolExecutionError(
-            f"sublist3r produced no output for '{domain}'."
-        )
+        raise ToolExecutionError(f"sublist3r produced no output for '{domain}'.")
     return result.stdout
 
 

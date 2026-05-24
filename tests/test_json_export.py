@@ -34,6 +34,7 @@ ALL_TOOLS = [
 # format_tool_result
 # ---------------------------------------------------------------------------
 
+
 class TestFormatToolResult:
     def test_required_keys_present(self):
         result = format_tool_result("search_email", "test@example.com", "some output")
@@ -78,6 +79,7 @@ class TestFormatToolResult:
 
     def test_timestamp_is_iso8601(self):
         from datetime import datetime
+
         result = format_tool_result("search_ip", "1.1.1.1", "output")
         # Should not raise
         datetime.fromisoformat(result["timestamp"])
@@ -86,6 +88,7 @@ class TestFormatToolResult:
 # ---------------------------------------------------------------------------
 # to_json
 # ---------------------------------------------------------------------------
+
 
 class TestToJson:
     def test_returns_valid_json_string(self):
@@ -108,6 +111,7 @@ class TestToJson:
 # ---------------------------------------------------------------------------
 # Parametrize over all 9 tool names
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("tool_name", ALL_TOOLS)
 def test_each_tool_produces_valid_json_schema(tool_name):

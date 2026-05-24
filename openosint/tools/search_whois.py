@@ -36,9 +36,7 @@ def _fetch_whois_data(domain: str) -> object:
     try:
         import whois  # type: ignore
     except ImportError as exc:
-        raise OSINTError(
-            "python-whois is not installed. Run: pip install python-whois"
-        ) from exc
+        raise OSINTError("python-whois is not installed. Run: pip install python-whois") from exc
 
     try:
         return whois.whois(domain)
@@ -49,15 +47,15 @@ def _fetch_whois_data(domain: str) -> object:
 def _format_whois_results(data: object, domain: str) -> str:
     """Return a structured string describing WHOIS registration data."""
     fields = {
-        "Domain":       getattr(data, "domain_name", None),
-        "Registrar":    getattr(data, "registrar", None),
-        "Created":      getattr(data, "creation_date", None),
-        "Expires":      getattr(data, "expiration_date", None),
-        "Updated":      getattr(data, "updated_date", None),
+        "Domain": getattr(data, "domain_name", None),
+        "Registrar": getattr(data, "registrar", None),
+        "Created": getattr(data, "creation_date", None),
+        "Expires": getattr(data, "expiration_date", None),
+        "Updated": getattr(data, "updated_date", None),
         "Name Servers": getattr(data, "name_servers", None),
-        "Emails":       getattr(data, "emails", None),
-        "Org":          getattr(data, "org", None),
-        "Country":      getattr(data, "country", None),
+        "Emails": getattr(data, "emails", None),
+        "Org": getattr(data, "org", None),
+        "Country": getattr(data, "country", None),
     }
 
     lines = [f"WHOIS results for '{domain}':\n"]

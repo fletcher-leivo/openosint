@@ -24,21 +24,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import argparse
-import asyncio
-import json
-import logging
-import sys
+import argparse  # noqa: E402
+import asyncio  # noqa: E402
+import json  # noqa: E402
+import logging  # noqa: E402
+import sys  # noqa: E402
 
-from openosint.json_output import format_tool_result
-from openosint.tools.search_breach import run_breach_osint
-from openosint.tools.search_censys import run_censys_osint
-from openosint.tools.search_email import run_email_osint
-from openosint.tools.search_ip2location import run_ip2location_osint
-from openosint.tools.search_paste import run_paste_osint
-from openosint.tools.search_shodan import run_shodan_osint
-from openosint.tools.search_username import run_username_osint
-from openosint.tools.search_virustotal import run_virustotal_osint
+from openosint.json_output import format_tool_result  # noqa: E402
+from openosint.tools.search_abuseipdb import run_abuseipdb_osint  # noqa: E402
+from openosint.tools.search_breach import run_breach_osint  # noqa: E402
+from openosint.tools.search_censys import run_censys_osint  # noqa: E402
+from openosint.tools.search_email import run_email_osint  # noqa: E402
+from openosint.tools.search_ip2location import run_ip2location_osint  # noqa: E402
+from openosint.tools.search_paste import run_paste_osint  # noqa: E402
+from openosint.tools.search_shodan import run_shodan_osint  # noqa: E402
+from openosint.tools.search_username import run_username_osint  # noqa: E402
+from openosint.tools.search_virustotal import run_virustotal_osint  # noqa: E402
 
 _DIVIDER = "=" * 60
 
@@ -46,6 +47,7 @@ _DIVIDER = "=" * 60
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
+
 
 def _configure_logging(verbose: bool) -> None:
     level = logging.DEBUG if verbose else logging.WARNING
@@ -55,6 +57,7 @@ def _configure_logging(verbose: bool) -> None:
 # ---------------------------------------------------------------------------
 # Argument parser
 # ---------------------------------------------------------------------------
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -82,7 +85,8 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Enable debug-level logging.",
     )
@@ -152,7 +156,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     email_cmd.add_argument("target", type=str, metavar="ADDRESS")
     email_cmd.add_argument(
-        "-t", "--timeout",
+        "-t",
+        "--timeout",
         type=int,
         default=120,
         metavar="SECONDS",
@@ -166,7 +171,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     username_cmd.add_argument("target", type=str, metavar="USERNAME")
     username_cmd.add_argument(
-        "-t", "--timeout",
+        "-t",
+        "--timeout",
         type=int,
         default=180,
         metavar="SECONDS",
@@ -185,7 +191,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="IP address for host lookup, or any Shodan search query.",
     )
     shodan_cmd.add_argument(
-        "-t", "--timeout",
+        "-t",
+        "--timeout",
         type=int,
         default=30,
         metavar="SECONDS",
@@ -204,7 +211,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="IPv4 address, domain, full URL, or file hash (MD5/SHA-1/SHA-256).",
     )
     virustotal_cmd.add_argument(
-        "-t", "--timeout",
+        "-t",
+        "--timeout",
         type=int,
         default=30,
         metavar="SECONDS",
@@ -223,7 +231,28 @@ def _build_parser() -> argparse.ArgumentParser:
         help="IPv4 address for host lookup, or domain for certificate search.",
     )
     censys_cmd.add_argument(
-        "-t", "--timeout",
+        "-t",
+        "--timeout",
+        type=int,
+        default=30,
+        metavar="SECONDS",
+        help="Request timeout (default: 30).",
+    )
+
+    # abuseipdb
+    abuseipdb_cmd = subparsers.add_parser(
+        "abuseipdb",
+        help="AbuseIPDB reputation check for an IP address (no AI). Requires ABUSEIPDB_API_KEY.",
+    )
+    abuseipdb_cmd.add_argument(
+        "ip",
+        type=str,
+        metavar="IP_ADDRESS",
+        help="IPv4 or IPv6 address to check.",
+    )
+    abuseipdb_cmd.add_argument(
+        "-t",
+        "--timeout",
         type=int,
         default=30,
         metavar="SECONDS",
@@ -242,7 +271,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="IPv4 or IPv6 address to look up.",
     )
     ip2location_cmd.add_argument(
-        "-t", "--timeout",
+        "-t",
+        "--timeout",
         type=int,
         default=30,
         metavar="SECONDS",
@@ -258,10 +288,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "targets",
         type=str,
         metavar="TARGETS",
-        help=(
-            "Comma-separated list of targets, "
-            "or path to a file with one target per line."
-        ),
+        help=("Comma-separated list of targets, or path to a file with one target per line."),
     )
 
     # web
@@ -270,15 +297,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Start the web server (opens browser automatically).",
     )
     web_cmd.add_argument(
-        "--port", type=int, default=8080, metavar="PORT",
+        "--port",
+        type=int,
+        default=8080,
+        metavar="PORT",
         help="Port to listen on (default: 8080).",
     )
     web_cmd.add_argument(
-        "--host", type=str, default="0.0.0.0", metavar="HOST",
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        metavar="HOST",
         help="Host/IP to bind to (default: 0.0.0.0).",
     )
     web_cmd.add_argument(
-        "--no-browser", action="store_true", dest="no_browser",
+        "--no-browser",
+        action="store_true",
+        dest="no_browser",
         help="Do not open a browser tab automatically.",
     )
 
@@ -315,6 +350,7 @@ def _build_parser() -> argparse.ArgumentParser:
 # Output helpers
 # ---------------------------------------------------------------------------
 
+
 def _print_result(result: str) -> None:
     print(_DIVIDER)
     print(" SCAN RESULTS ".center(60, "="))
@@ -339,6 +375,7 @@ def _emit_json(data: dict | list) -> None:
 # Direct command handlers (no AI)
 # ---------------------------------------------------------------------------
 
+
 async def _handle_email(
     target: str,
     timeout: int,
@@ -352,10 +389,12 @@ async def _handle_email(
             run_breach_osint(email=target),
         )
         if json_output:
-            _emit_json([
-                format_tool_result("search_email", target, email_result),
-                format_tool_result("search_breach", target, breach_result),
-            ])
+            _emit_json(
+                [
+                    format_tool_result("search_email", target, email_result),
+                    format_tool_result("search_breach", target, breach_result),
+                ]
+            )
         else:
             _print_result_labeled("search_email", email_result)
             _print_result_labeled("search_breach", breach_result)
@@ -382,10 +421,12 @@ async def _handle_username(
             run_paste_osint(query=target),
         )
         if json_output:
-            _emit_json([
-                format_tool_result("search_username", target, username_result),
-                format_tool_result("search_paste", target, paste_result),
-            ])
+            _emit_json(
+                [
+                    format_tool_result("search_username", target, username_result),
+                    format_tool_result("search_paste", target, paste_result),
+                ]
+            )
         else:
             _print_result_labeled("search_username", username_result)
             _print_result_labeled("search_paste", paste_result)
@@ -438,6 +479,19 @@ async def _handle_censys(
         _print_result(result)
 
 
+async def _handle_abuseipdb(
+    ip: str,
+    timeout: int,
+    json_output: bool = False,
+) -> None:
+    print(f"[*] AbuseIPDB lookup: {ip}", file=sys.stderr)
+    result = await run_abuseipdb_osint(ip=ip, timeout_seconds=timeout)
+    if json_output:
+        _emit_json(format_tool_result("search_abuseipdb", ip, result))
+    else:
+        _print_result(result)
+
+
 async def _handle_ip2location(
     ip: str,
     timeout: int,
@@ -478,6 +532,7 @@ async def _handle_multi(
 # Web server handler
 # ---------------------------------------------------------------------------
 
+
 async def _handle_web(
     host: str = "0.0.0.0",
     port: int = 8080,
@@ -500,6 +555,7 @@ async def _handle_web(
 # History command handler
 # ---------------------------------------------------------------------------
 
+
 def _handle_history(args: argparse.Namespace) -> None:
     import sys as _sys
 
@@ -520,8 +576,7 @@ def _handle_history(args: argparse.Namespace) -> None:
         n = args.n
         if n < 1 or n > len(sessions):
             _console.print(
-                f"[bold red]Error:[/] Session {n} not found "
-                f"(total saved: {len(sessions)})"
+                f"[bold red]Error:[/] Session {n} not found (total saved: {len(sessions)})"
             )
             _sys.exit(1)
         display_session_detail(sessions[n - 1], n, _console)
@@ -549,6 +604,7 @@ def _handle_history(args: argparse.Namespace) -> None:
 # Entry points
 # ---------------------------------------------------------------------------
 
+
 async def _async_main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
@@ -559,6 +615,7 @@ async def _async_main() -> None:
     # internally, which raises RuntimeError when called from a running event loop.
     if args.command in (None, "shell"):
         from openosint.repl import OpenOSINTRepl
+
         repl = OpenOSINTRepl(
             api_key=getattr(args, "api_key", None),
             provider=getattr(args, "provider", "anthropic"),
@@ -587,6 +644,8 @@ async def _async_main() -> None:
         await _handle_virustotal(args.target, args.timeout, json_output=json_output)
     elif args.command == "censys":
         await _handle_censys(args.target, args.timeout, json_output=json_output)
+    elif args.command == "abuseipdb":
+        await _handle_abuseipdb(args.ip, args.timeout, json_output=json_output)
     elif args.command == "ip2location":
         await _handle_ip2location(args.ip, args.timeout, json_output=json_output)
     elif args.command == "multi":

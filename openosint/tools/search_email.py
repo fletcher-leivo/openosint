@@ -29,9 +29,7 @@ async def _run_holehe(email: str, timeout_seconds: int) -> str:
         install_hint=_INSTALL_HINT,
     )
     if result.return_code != 0:
-        raise ToolExecutionError(
-            f"holehe exited with code {result.return_code}: {result.stderr}"
-        )
+        raise ToolExecutionError(f"holehe exited with code {result.return_code}: {result.stderr}")
     return result.stdout
 
 

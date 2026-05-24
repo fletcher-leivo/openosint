@@ -34,14 +34,13 @@ _POLL_ATTEMPTS = 3
 _POLL_DELAY = 5  # seconds between URL analysis polls
 
 _IP_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-_HASH_RE = re.compile(
-    r"^([0-9a-fA-F]{32}|[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$"
-)
+_HASH_RE = re.compile(r"^([0-9a-fA-F]{32}|[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$")
 
 
 # ---------------------------------------------------------------------------
 # Input-type detection
 # ---------------------------------------------------------------------------
+
 
 def _detect_input_type(target: str) -> str:
     """Classify target as 'ip', 'hash', 'url', or 'domain' for API routing."""
@@ -58,6 +57,7 @@ def _detect_input_type(target: str) -> str:
 # Shared HTTP helpers
 # ---------------------------------------------------------------------------
 
+
 def _headers(api_key: str) -> dict[str, str]:
     return {"x-apikey": api_key, "Accept": "application/json"}
 
@@ -71,17 +71,15 @@ def _validate_response(response: requests.Response) -> None:
     if response.status_code == 404:
         raise OSINTError("Target not found in VirusTotal database.")
     if response.status_code not in (200, 201):
-        raise ToolExecutionError(
-            f"VirusTotal returned HTTP {response.status_code}."
-        )
+        raise ToolExecutionError(f"VirusTotal returned HTTP {response.status_code}.")
 
 
 def _extract_stats(attrs: dict) -> dict[str, int]:
     raw = attrs.get("last_analysis_stats", {})
     return {
-        "malicious":  raw.get("malicious", 0),
+        "malicious": raw.get("malicious", 0),
         "suspicious": raw.get("suspicious", 0),
-        "harmless":   raw.get("harmless", 0),
+        "harmless": raw.get("harmless", 0),
         "undetected": raw.get("undetected", 0),
     }
 
@@ -92,14 +90,13 @@ def _append_stats(lines: list[str], stats: dict[str, int]) -> None:
     lines.append(f"[VirusTotal] Harmless: {stats['harmless']}")
     lines.append(f"[VirusTotal] Undetected: {stats['undetected']}")
     if stats["malicious"] > 0:
-        lines.append(
-            f"⚠️  FLAGGED AS MALICIOUS by {stats['malicious']} engines"
-        )
+        lines.append(f"⚠️  FLAGGED AS MALICIOUS by {stats['malicious']} engines")
 
 
 # ---------------------------------------------------------------------------
 # Formatters
 # ---------------------------------------------------------------------------
+
 
 def _format_ip(data: dict) -> str:
     attrs = data.get("data", {}).get("attributes", {})
@@ -143,9 +140,9 @@ def _format_url_analysis(data: dict, target_url: str) -> str:
     # The analysis endpoint uses "stats"; fall back to "last_analysis_stats"
     raw = attrs.get("stats", attrs.get("last_analysis_stats", {}))
     stats = {
-        "malicious":  raw.get("malicious", 0),
+        "malicious": raw.get("malicious", 0),
         "suspicious": raw.get("suspicious", 0),
-        "harmless":   raw.get("harmless", 0),
+        "harmless": raw.get("harmless", 0),
         "undetected": raw.get("undetected", 0),
     }
     _append_stats(lines, stats)
@@ -164,10 +161,7 @@ def _format_hash(data: dict) -> str:
     size = attrs.get("size", "")
     if size:
         lines.append(f"[VirusTotal] Size: {size} bytes")
-    threat_label = (
-        attrs.get("popular_threat_classification", {})
-        .get("suggested_threat_label", "")
-    )
+    threat_label = attrs.get("popular_threat_classification", {}).get("suggested_threat_label", "")
     if threat_label:
         lines.append(f"[VirusTotal] Threat Label: {threat_label}")
     _append_stats(lines, _extract_stats(attrs))
@@ -177,6 +171,7 @@ def _format_hash(data: dict) -> str:
 # ---------------------------------------------------------------------------
 # API calls (synchronous — matches existing tool pattern)
 # ---------------------------------------------------------------------------
+
 
 def _lookup_ip(api_key: str, ip: str, timeout: int) -> str:
     try:
@@ -214,9 +209,7 @@ def _lookup_url(api_key: str, target_url: str, timeout: int) -> str:
             timeout=timeout,
         )
     except requests.RequestException as exc:
-        raise OSINTError(
-            f"Network error submitting URL to VirusTotal: {exc}"
-        ) from exc
+        raise OSINTError(f"Network error submitting URL to VirusTotal: {exc}") from exc
     _validate_response(submit_response)
 
     analysis_id = submit_response.json().get("data", {}).get("id", "")
@@ -234,16 +227,10 @@ def _lookup_url(api_key: str, target_url: str, timeout: int) -> str:
                 timeout=timeout,
             )
         except requests.RequestException as exc:
-            raise OSINTError(
-                f"Network error polling VirusTotal analysis: {exc}"
-            ) from exc
+            raise OSINTError(f"Network error polling VirusTotal analysis: {exc}") from exc
         _validate_response(poll_response)
         poll_data = poll_response.json()
-        status = (
-            poll_data.get("data", {})
-            .get("attributes", {})
-            .get("status", "")
-        )
+        status = poll_data.get("data", {}).get("attributes", {}).get("status", "")
         if status == "completed":
             break
 
@@ -267,9 +254,8 @@ def _lookup_hash(api_key: str, file_hash: str, timeout: int) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
-async def run_virustotal_osint(
-    target: str, timeout_seconds: int = _DEFAULT_TIMEOUT
-) -> str:
+
+async def run_virustotal_osint(target: str, timeout_seconds: int = _DEFAULT_TIMEOUT) -> str:
     """
     Check *target* against VirusTotal's 70+ antivirus engines.
 
@@ -292,9 +278,7 @@ async def run_virustotal_osint(
 
     target = target.strip()
     input_type = _detect_input_type(target)
-    logger.info(
-        "Starting VirusTotal lookup for: %s (type: %s)", target, input_type
-    )
+    logger.info("Starting VirusTotal lookup for: %s (type: %s)", target, input_type)
 
     try:
         if input_type == "ip":

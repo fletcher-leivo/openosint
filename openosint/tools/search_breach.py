@@ -73,8 +73,7 @@ def _format_breach_results(breaches: list[dict], email: str) -> str:
     for breach in breaches:
         data_classes = ", ".join(breach.get("DataClasses", [])[:4])
         lines.append(
-            f"[+] {breach['Name']} ({breach.get('BreachDate', 'unknown')}) "
-            f"— leaked: {data_classes}"
+            f"[+] {breach['Name']} ({breach.get('BreachDate', 'unknown')}) — leaked: {data_classes}"
         )
     return "\n".join(lines)
 

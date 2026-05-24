@@ -14,16 +14,19 @@ import pytest
 # Shodan — missing API key
 # ---------------------------------------------------------------------------
 
+
 class TestShodanMissingKey:
     async def test_returns_descriptive_error_when_key_absent(self, monkeypatch):
         monkeypatch.delenv("SHODAN_API_KEY", raising=False)
         from openosint.tools.search_shodan import run_shodan_osint
+
         result = await run_shodan_osint("8.8.8.8")
         assert "SHODAN_API_KEY" in result
 
     async def test_error_message_contains_instructions(self, monkeypatch):
         monkeypatch.delenv("SHODAN_API_KEY", raising=False)
         from openosint.tools.search_shodan import run_shodan_osint
+
         result = await run_shodan_osint("apache port:80")
         assert "SHODAN_API_KEY" in result
         assert "https://account.shodan.io" in result
@@ -31,6 +34,7 @@ class TestShodanMissingKey:
     async def test_ip_detection_does_not_affect_missing_key_error(self, monkeypatch):
         monkeypatch.delenv("SHODAN_API_KEY", raising=False)
         from openosint.tools.search_shodan import run_shodan_osint
+
         # Both IP and keyword queries should return the same missing-key error
         for query in ("1.2.3.4", "nginx country:DE"):
             result = await run_shodan_osint(query)
@@ -41,15 +45,18 @@ class TestShodanMissingKey:
 # Shodan — IP detection helper
 # ---------------------------------------------------------------------------
 
+
 class TestShodanIpDetection:
     def test_valid_ip_detected(self):
         from openosint.tools.search_shodan import _is_ip_address
+
         assert _is_ip_address("8.8.8.8") is True
         assert _is_ip_address("192.168.1.1") is True
         assert _is_ip_address("0.0.0.0") is True
 
     def test_non_ip_not_detected(self):
         from openosint.tools.search_shodan import _is_ip_address
+
         assert _is_ip_address("apache port:80") is False
         assert _is_ip_address("example.com") is False
         assert _is_ip_address("8.8.8") is False
@@ -60,15 +67,18 @@ class TestShodanIpDetection:
 # Multi-target — max target enforcement
 # ---------------------------------------------------------------------------
 
+
 class TestMultiTargetMaxTargets:
     async def test_raises_value_error_for_11_targets(self):
         from openosint.multi_target import run_multi_target
+
         targets = [f"target{i}@example.com" for i in range(11)]
         with pytest.raises(ValueError, match="10"):
             await run_multi_target(targets, api_key="fake-key")
 
     async def test_raises_value_error_for_many_targets(self):
         from openosint.multi_target import run_multi_target
+
         targets = [f"t{i}" for i in range(50)]
         with pytest.raises(ValueError, match="10"):
             await run_multi_target(targets, api_key="fake-key")
@@ -76,6 +86,7 @@ class TestMultiTargetMaxTargets:
     async def test_10_targets_does_not_raise_immediately(self, monkeypatch):
         """10 targets is the maximum — should not raise the size error."""
         from openosint.multi_target import MAX_TARGETS, run_multi_target
+
         assert MAX_TARGETS == 10
         targets = [f"t{i}@example.com" for i in range(10)]
         # We don't actually run the investigation — just verify no ValueError is raised
@@ -83,6 +94,7 @@ class TestMultiTargetMaxTargets:
         with patch("openosint.multi_target.OpenOSINTAgent") as MockAgent:
             instance = MockAgent.return_value
             from openosint.agent import AgentResponse
+
             instance.run = AsyncMock(return_value=AgentResponse(content="## Summary\n\nok"))
             # Should not raise ValueError
             try:
@@ -94,6 +106,7 @@ class TestMultiTargetMaxTargets:
         import asyncio
 
         from openosint.multi_target import run_multi_target
+
         result = asyncio.run(run_multi_target([], api_key="fake"))
         assert "No targets" in result
 
@@ -102,19 +115,23 @@ class TestMultiTargetMaxTargets:
 # Multi-target — target parsing
 # ---------------------------------------------------------------------------
 
+
 class TestParseTargets:
     def test_comma_separated_inline(self):
         from openosint.multi_target import parse_targets
+
         result = parse_targets("a@x.com,b@y.com,c@z.com")
         assert result == ["a@x.com", "b@y.com", "c@z.com"]
 
     def test_strips_whitespace(self):
         from openosint.multi_target import parse_targets
+
         result = parse_targets("  a@x.com , b@y.com ")
         assert result == ["a@x.com", "b@y.com"]
 
     def test_file_with_one_per_line(self, tmp_path):
         from openosint.multi_target import parse_targets
+
         f = tmp_path / "targets.txt"
         f.write_text("a@x.com\nb@y.com\nc@z.com\n", encoding="utf-8")
         result = parse_targets(str(f))
@@ -122,6 +139,7 @@ class TestParseTargets:
 
     def test_file_ignores_blank_lines(self, tmp_path):
         from openosint.multi_target import parse_targets
+
         f = tmp_path / "targets.txt"
         f.write_text("a@x.com\n\nb@y.com\n\n", encoding="utf-8")
         result = parse_targets(str(f))
@@ -131,6 +149,7 @@ class TestParseTargets:
 # ---------------------------------------------------------------------------
 # PDF report generation
 # ---------------------------------------------------------------------------
+
 
 class TestPdfReportGeneration:
     async def test_pdf_created_alongside_markdown(self, tmp_path):

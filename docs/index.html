@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>openosint(1)</title>
-<meta name="description" content="OpenOSINT 2.12.0 — AI-powered OSINT agent, MCP server, CLI, and web interface. 13 tools, interactive REPL, autonomous investigations.">
+<meta name="description" content="OpenOSINT 2.14.0 — AI-powered OSINT agent, MCP server, CLI, and web interface. 14 tools, interactive REPL, autonomous investigations.">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -56,6 +56,8 @@
 openosint shell                    # same as above
 openosint email <u>address</u> [<b>-t</b> <u>seconds</u>]  # direct scan, no AI
 openosint username <u>handle</u> [<b>-t</b> <u>seconds</u>] # direct scan, no AI
+openosint ip2location <u>address</u> [<b>-t</b> <u>seconds</u>]   # IP2Location lookup
+openosint abuseipdb <u>address</u> [<b>-t</b> <u>seconds</u>]    # AbuseIPDB reputation check
 openosint [<b>-v</b>] [<b>--api-key</b> <u>key</u>]</pre>
 </div>
 
@@ -64,7 +66,7 @@ openosint [<b>-v</b>] [<b>--api-key</b> <u>key</u>]</pre>
 <p><b>openosint</b> is a modular OSINT framework with three interfaces:</p>
 <p><b>Interactive REPL</b> (default) &mdash; a Claude Code-style terminal where you type targets or questions in natural language. The AI agent decides which tools to run, chains them based on findings, and compiles a structured report.</p>
 <p><b>Direct CLI</b> &mdash; run individual OSINT tools without AI for scripting or quick lookups.</p>
-<p><b>MCP Server</b> &mdash; expose all 9 tools to any MCP-compatible AI client (Claude Code, Claude Desktop).</p>
+<p><b>MCP Server</b> &mdash; expose all 14 tools to any MCP-compatible AI client (Claude Code, Claude Desktop).</p>
 <p>The AI layer uses the Anthropic native tool use API. The model issues hard stops when it needs a tool — the real tool executes and real output goes back. Hallucination in tool results is structurally impossible.</p>
 </div>
 
@@ -125,6 +127,7 @@ $ export ANTHROPIC_API_KEY=sk-ant-...</pre>
 <tr><td><code>HIBP_API_KEY</code></td><td><code>search_breach</code></td><td>HaveIBeenPwned API key &mdash; <a href="https://haveibeenpwned.com/API/Key" target="_blank" rel="noopener">get one here</a></td></tr>
 <tr><td><code>IPINFO_TOKEN</code></td><td><code>search_ip</code></td><td>ipinfo.io token for higher rate limits</td></tr>
 <tr><td><code>IP2LOCATION_API_KEY</code></td><td><code>search_ip2location</code></td><td>IP2Location API key &mdash; <a href="https://www.ip2location.io/pricing" target="_blank" rel="noopener">get one here</a></td></tr>
+<tr><td><code>ABUSEIPDB_API_KEY</code></td><td><code>search_abuseipdb</code></td><td>AbuseIPDB API key &mdash; <a href="https://www.abuseipdb.com/register" target="_blank" rel="noopener">get one here</a></td></tr>
 </table>
 </div>
 
@@ -207,6 +210,7 @@ Currently the web interface runs locally only.</p>
 <tr><td><code>search_phone</code></td><td>phoneinfoga</td><td>Carrier, country, line type</td></tr>
 <tr><td><code>search_censys</code></td><td>Censys API</td><td>Open ports, services, certificate history</td></tr>
 <tr><td><code>search_ip2location</code></td><td>IP2Location API</td><td>Geolocation, ISP, VPN/Proxy/Tor/Datacenter detection</td></tr>
+<tr><td><code>search_abuseipdb</code></td><td>AbuseIPDB v2 API</td><td>IP abuse confidence score, reports, country, ISP</td></tr>
 </table>
 <p><b>ℹ️ Note:</b> The IP2Location integration is sponsored — a Security Plan API key is provided free of charge by <a href="https://www.ip2location.com" target="_blank" rel="noopener">IP2Location</a>.</p>
 
@@ -318,6 +322,25 @@ $ openosint ip2location 8.8.8.8 -t 30</pre>
 [IP2Location] Threat: clean</pre>
 <p>If a VPN, proxy, or Tor exit node is detected, the output appends: <code>&#9888;&#65039;  FLAGGED: VPN/Proxy/Tor detected</code></p>
 
+<hr>
+<h3>search_abuseipdb</h3>
+<p>Checks an IP address against the <a href="https://www.abuseipdb.com" target="_blank" rel="noopener">AbuseIPDB</a> v2 API for abuse reputation. Returns abuse confidence score (0–100%), total reports, country, ISP, domain, and last reported timestamp. Shows a prominent warning when score exceeds 50%.</p>
+<p><b>MCP parameter:</b> <code>ip</code> (string, required) &mdash; IPv4 or IPv6 address</p>
+<p><b>Requires:</b> <code>ABUSEIPDB_API_KEY</code> environment variable &mdash; <a href="https://www.abuseipdb.com/register" target="_blank" rel="noopener">get one here</a></p>
+<pre>$ openosint abuseipdb 198.51.100.1
+$ openosint abuseipdb 198.51.100.1 -t 30</pre>
+<pre>Abuse intelligence for '198.51.100.1':
+
+[AbuseIPDB] IP: 198.51.100.1
+[AbuseIPDB] Abuse Confidence Score: 87%
+[AbuseIPDB] Total Reports: 143
+[AbuseIPDB] Country: US
+[AbuseIPDB] ISP: Example ISP LLC
+[AbuseIPDB] Domain: example-isp.net
+[AbuseIPDB] Last Reported: 2026-05-20T14:33:00+00:00
+&#9888;&#65039;  HIGH ABUSE CONFIDENCE &mdash; flagged by AbuseIPDB</pre>
+<p>The warning line only appears when <code>abuseConfidenceScore</code> exceeds 50%.</p>
+
 </div>
 
 <h2 id="commands">DIRECT CLI COMMANDS</h2>
@@ -388,6 +411,7 @@ $ openosint -v email target@example.com</pre>
 <tr><td><code>openosint/tools/search_paste.py</code></td><td>Pastebin search.</td></tr>
 <tr><td><code>openosint/tools/search_phone.py</code></td><td>Phone intelligence.</td></tr>
 <tr><td><code>openosint/tools/search_ip2location.py</code></td><td>IP2Location enhanced IP intelligence.</td></tr>
+<tr><td><code>openosint/tools/search_abuseipdb.py</code></td><td>IP abuse reputation module.</td></tr>
 <tr><td><code>openosint/tools/exceptions.py</code></td><td>Shared exception hierarchy.</td></tr>
 <tr><td><code>pyproject.toml</code></td><td>Build configuration (PEP 621).</td></tr>
 <tr><td><code>DISCLAIMER.md</code></td><td>Legal notice and ethical use policy.</td></tr>
@@ -447,8 +471,8 @@ $ pip install -e .</pre>
 <div id="footer">
 <table width="100%" cellpadding="0" cellspacing="0" border="0">
 <tr>
-<td class="mhead-l">OpenOSINT 2.12.0</td>
-<td class="mhead-c">May 21, 2026</td>
+<td class="mhead-l">OpenOSINT 2.14.0</td>
+<td class="mhead-c">May 2026</td>
 <td class="mhead-r">OPENOSINT(1)</td>
 </tr>
 </table>

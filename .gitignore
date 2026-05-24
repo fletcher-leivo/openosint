@@ -109,6 +109,10 @@ out/
 .claude/
 CLAUDE.md
 
+# Claude Code / AI tooling
+.claude/settings.local.json
+.claude/todos/
+
 # Logs
 *.log
 logs/
