@@ -615,8 +615,11 @@ document.addEventListener('alpine:init', () => {
       this.messages.push({ role: 'user', content: text, time: now });
       this.chatHistory.push({ role: 'user', content: text });
 
-      const aiMsg = { role: 'assistant', parts: [] };
-      this.messages.push(aiMsg);
+      this.messages.push({ role: 'assistant', parts: [] });
+      // Track the index so all mutations go through the reactive proxy (this.messages[msgIdx])
+      // rather than a raw object reference — raw mutations bypass Alpine's reactivity and
+      // prevent the DOM from updating (x-for / x-show never re-run).
+      const msgIdx = this.messages.length - 1;
       this.isStreaming = true;
       this.scrollToBottom();
 
@@ -639,13 +642,13 @@ document.addEventListener('alpine:init', () => {
         if (!resp.ok) {
           let errDetail = `HTTP ${resp.status}`;
           try { const e = await resp.json(); errDetail += ': ' + (e.detail || JSON.stringify(e)); } catch {}
-          aiMsg.parts.push({ type: 'text', content: `Server error: ${errDetail}`, streaming: false });
+          this.messages[msgIdx].parts.push({ type: 'text', content: `Server error: ${errDetail}`, streaming: false });
           this.isStreaming = false;
           return;
         }
 
         if (!resp.body) {
-          aiMsg.parts.push({ type: 'text', content: 'Error: response body is null (browser may not support streaming).', streaming: false });
+          this.messages[msgIdx].parts.push({ type: 'text', content: 'Error: response body is null (browser may not support streaming).', streaming: false });
           this.isStreaming = false;
           return;
         }
@@ -676,8 +679,10 @@ document.addEventListener('alpine:init', () => {
 
             if (evt.type === 'text') {
               if (!curText) {
-                curText = { type: 'text', content: '', streaming: true };
-                aiMsg.parts.push(curText);
+                this.messages[msgIdx].parts.push({ type: 'text', content: '', streaming: true });
+                // Read back through the reactive proxy so incremental content mutations
+                // also trigger Alpine DOM updates (for Claude's word-by-word streaming).
+                curText = this.messages[msgIdx].parts[this.messages[msgIdx].parts.length - 1];
               }
               curText.content += evt.content;
               fullText += evt.content;
@@ -685,17 +690,22 @@ document.addEventListener('alpine:init', () => {
 
             } else if (evt.type === 'tool_start') {
               flushText();
-              aiMsg.parts.push({
+              this.messages[msgIdx].parts.push({
                 type: 'tool', tool: evt.tool, input: evt.input || '',
                 status: 'running', output: '', elapsed: null, collapsed: false,
               });
               this.scrollToBottom();
 
             } else if (evt.type === 'tool_result') {
-              const card = [...aiMsg.parts].reverse().find(
-                p => p.type === 'tool' && p.tool === evt.tool && p.status === 'running'
-              );
-              if (card) { card.output = evt.output || ''; card.elapsed = evt.elapsed; card.status = 'done'; }
+              const parts = this.messages[msgIdx].parts;
+              for (let i = parts.length - 1; i >= 0; i--) {
+                if (parts[i].type === 'tool' && parts[i].tool === evt.tool && parts[i].status === 'running') {
+                  parts[i].output = evt.output || '';
+                  parts[i].elapsed = evt.elapsed;
+                  parts[i].status = 'done';
+                  break;
+                }
+              }
               this.scrollToBottom();
 
             } else if (evt.type === 'done') {
@@ -703,26 +713,26 @@ document.addEventListener('alpine:init', () => {
 
             } else if (evt.type === 'error') {
               flushText();
-              aiMsg.parts.push({ type: 'text', content: `Error: ${evt.message}`, streaming: false });
+              this.messages[msgIdx].parts.push({ type: 'text', content: `Error: ${evt.message}`, streaming: false });
               break outer;
             }
           }
         }
         flushText();
-        if (aiMsg.parts.length === 0) {
-          aiMsg.parts.push({ type: 'text', content: 'No response received from backend.', streaming: false });
+        if (this.messages[msgIdx].parts.length === 0) {
+          this.messages[msgIdx].parts.push({ type: 'text', content: 'No response received from backend.', streaming: false });
         }
 
         if (fullText.trim()) {
           this.chatHistory.push({ role: 'assistant', content: fullText.trim() });
-        } else if (aiMsg.parts.some(p => p.type === 'tool')) {
-          const summary = aiMsg.parts.filter(p => p.type === 'tool')
+        } else if (this.messages[msgIdx].parts.some(p => p.type === 'tool')) {
+          const summary = this.messages[msgIdx].parts.filter(p => p.type === 'tool')
             .map(p => `[Used ${p.tool} on "${p.input}"]`).join(' ');
           this.chatHistory.push({ role: 'assistant', content: summary });
         }
 
       } catch (err) {
-        aiMsg.parts.push({ type: 'text', content: `Connection error: ${err.message}`, streaming: false });
+        this.messages[msgIdx].parts.push({ type: 'text', content: `Connection error: ${err.message}`, streaming: false });
       }
 
       this.isStreaming = false;
