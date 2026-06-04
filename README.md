@@ -33,13 +33,13 @@ mcp-name: io.github.OpenOSINT/openosint
 
 ## What is OpenOSINT?
 
-OpenOSINT is an AI agent for Open Source Intelligence with three interfaces: an interactive terminal REPL, a direct CLI, and an MCP server exposable to Claude Code, Claude Desktop, or any MCP-compatible client — plus a browser-based Web UI added in v2.12.0. The AI layer uses Anthropic's native tool use API (or a local Ollama model): the model issues hard stops when it needs a tool, your code executes the real binary, the actual output goes back — hallucination in tool results is structurally impossible.
+OpenOSINT is an AI agent for Open Source Intelligence with three interfaces: an interactive terminal REPL, a direct CLI, and an MCP server exposable to Claude Code, Claude Desktop, or any MCP-compatible client — plus a browser-based Web UI added in v2.12.0. The AI layer uses Anthropic's native tool use API (or a local Ollama model, or any OpenAI-compatible endpoint): the model issues hard stops when it needs a tool, your code executes the real binary, the actual output goes back — hallucination in tool results is structurally impossible.
 
 ## Features
 
 - **AI tool chaining** — the agent decides which of 16 tools to run, chains them based on findings, and compiles a structured report
 - **16 modular tools** covering email, username, breach, WHOIS, IP, subdomain, dorks, paste, phone, Shodan, VirusTotal, Censys, IP2Location, AbuseIPDB, GitHub, and DNS
-- **Anthropic + Ollama** — use Claude via API key or run fully offline with a local Ollama model
+- **Anthropic, Ollama, or any OpenAI-compatible endpoint** — use Claude via API key, run fully offline with a local Ollama model, or point at any OpenAI-compatible server (LiteLLM, llama-swap, vLLM, LM Studio, …)
 - **MCP server** — expose all tools natively to Claude Code and Claude Desktop
 - **Parallel execution** — `--parallel` runs complementary tools concurrently via `asyncio.gather()`
 - **PDF + Markdown reports** — auto-saved after every investigation; PDF export via `reportlab`
@@ -90,7 +90,10 @@ Store all keys in a `.env` file at the project root (copy `.env.example`). `pyth
 
 | Variable | Tool | Required | Purpose |
 |----------|------|----------|---------|
-| `ANTHROPIC_API_KEY` | AI agent | Yes (or use Ollama) | Anthropic API key |
+| `ANTHROPIC_API_KEY` | AI agent | Yes (or use Ollama / OpenAI) | Anthropic API key |
+| `OPENAI_BASE_URL` | AI agent | Optional | Base URL of an OpenAI-compatible endpoint (e.g. `http://localhost:4000/v1`). When set and `ANTHROPIC_API_KEY` is absent, it is used as the AI backend (takes precedence over Ollama). The model must support tool/function calling. |
+| `OPENAI_API_KEY` | AI agent | Optional | API key for the OpenAI-compatible endpoint (local servers may ignore it) |
+| `OPENAI_MODEL` | AI agent | Optional | Model name to request from the endpoint (default: `gpt-4o-mini`) |
 | `HIBP_API_KEY` | `search_breach` | Optional | HaveIBeenPwned v3 — [get one](https://haveibeenpwned.com/API/Key) |
 | `IPINFO_TOKEN` | `search_ip` | Optional | ipinfo.io higher rate limits |
 | `SHODAN_API_KEY` | `search_shodan` | Optional | Shodan API — [get one](https://account.shodan.io) |
@@ -105,6 +108,7 @@ Store all keys in a `.env` file at the project root (copy `.env.example`). `pyth
 | Package | Purpose | Install |
 |---------|---------|---------|
 | `ollama` | Local LLM backend (no API key) | `pip install ollama` *(Python client only — also install the [Ollama runtime](https://ollama.com))* |
+| `openai` | OpenAI-compatible backend for the REPL/CLI (`--provider openai`) | `pip install "openosint[openai]"` *(not required for the Web UI, which has no extra dependency)* |
 | `shodan` | Shodan API client | `pip install shodan` |
 | `reportlab` | PDF report export | `pip install reportlab` |
 | `censys` | Censys API client | `pip install censys` |
@@ -400,7 +404,7 @@ openosint web
 # Opens http://localhost:8080 automatically
 ```
 
-Browser-based AI chat interface with streaming tool output, inline result cards, light/dark theme toggle, and Ollama support for fully local inference. No API key required when using Ollama.
+Browser-based AI chat interface with streaming tool output, inline result cards, light/dark theme toggle, and support for fully local inference via Ollama or any OpenAI-compatible endpoint. No Anthropic API key required when using a local backend.
 
 ```bash
 # Install web extras
@@ -417,6 +421,23 @@ ollama pull llama3.2  # download the model (~2 GB)
 # Step 3: launch OpenOSINT and switch to Ollama
 openosint web
 # Settings -> Ollama (local) -> set model to llama3.2
+
+# Or point at any OpenAI-compatible endpoint (LiteLLM, llama-swap, vLLM, LM Studio, …).
+# The selected model must support tool/function calling.
+export OPENAI_BASE_URL="http://localhost:4000/v1"
+export OPENAI_API_KEY="sk-..."        # optional for local servers
+export OPENAI_MODEL="gpt-4o-mini"
+openosint web
+# Settings -> OpenAI API  (or just start chatting — it is auto-selected when no ANTHROPIC_API_KEY is set)
+```
+
+For the REPL/CLI, the same backend is available via `--provider openai`:
+
+```bash
+pip install "openosint[openai]"
+openosint --provider openai \
+  --openai-base-url http://localhost:4000/v1 \
+  --openai-model gpt-4o-mini
 ```
 
 <div align="center">
@@ -501,9 +522,12 @@ Set `ANTHROPIC_API_KEY` (and optionally `HIBP_API_KEY`, `IPINFO_TOKEN`) in a `.e
 | `--api-key KEY` | Anthropic API key (overrides env var) |
 | `--parallel` | Run complementary tools concurrently |
 | `--json` | Output results as structured JSON |
-| `--provider {anthropic,ollama}` | AI provider (default: `anthropic`) |
+| `--provider {anthropic,ollama,openai}` | AI provider (default: `anthropic`) |
 | `--ollama-model MODEL` | Ollama model name (default: `llama3.2`) |
 | `--ollama-host URL` | Ollama server URL (default: `http://localhost:11434`) |
+| `--openai-base-url URL` | OpenAI-compatible endpoint base URL (env: `OPENAI_BASE_URL`) |
+| `--openai-model MODEL` | Model to request from the endpoint (default: `gpt-4o-mini`; env: `OPENAI_MODEL`) |
+| `--openai-api-key KEY` | API key for the endpoint (env: `OPENAI_API_KEY`) |
 | `--no-pdf` | Disable automatic PDF generation |
 
 ## Integrations
