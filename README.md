@@ -605,7 +605,7 @@ For commercial use in closed-source products, a separate license is required. �
 
 *For authorized security research only. See [DISCLAIMER.md](DISCLAIMER.md).*
 
-*OpenOSINT v2.18.1 — June 2, 2026*
+*OpenOSINT v2.19.0 — June 5, 2026*
 
 ## Star History
 

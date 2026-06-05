@@ -420,15 +420,7 @@ class TestOpenAICompatibleAgentToolUseLoop:
 
 
 class TestOpenAICompatibleAgentEmptyChoices:
-    """
-    BUG: When the server returns an empty 'choices' list, the agent accesses
-    response.choices[0] unconditionally, which raises IndexError.  That error
-    is caught by the bare `except Exception` block and returned as
-    AgentResponse(error="list index out of range") — a non-descriptive message.
-
-    These tests document the current (broken) behavior so a future fix is
-    tracked and the regression guard is in place.
-    """
+    """Empty choices list is caught early and returns a descriptive error."""
 
     async def test_empty_choices_returns_error_not_crash(self):
         """An empty choices list must not propagate an uncaught exception."""
@@ -446,9 +438,8 @@ class TestOpenAICompatibleAgentEmptyChoices:
         assert result.error != ""
         assert result.content == ""
 
-    async def test_empty_choices_error_message_is_non_descriptive(self):
-        """Documents that the current error is 'list index out of range' rather than
-        a message that tells the user the server returned no choices."""
+    async def test_empty_choices_error_message_is_descriptive(self):
+        """Error message tells the user the server returned no choices."""
         from openosint.agent import OpenAICompatibleAgent
 
         mock_openai = _make_mock_openai()
@@ -457,11 +448,11 @@ class TestOpenAICompatibleAgentEmptyChoices:
         mock_client.chat.completions.create = AsyncMock(return_value=_make_response_empty_choices())
 
         with patch.dict(sys.modules, {"openai": mock_openai}):
-            agent = OpenAICompatibleAgent()
+            agent = OpenAICompatibleAgent(base_url="http://localhost/v1")
             result = await agent.run("query")
 
-        # BUG: this gives no hint that the server returned an empty choices list.
-        assert "list index out of range" in result.error
+        assert "no choices" in result.error.lower()
+        assert "list index out of range" not in result.error
 
 
 # ---------------------------------------------------------------------------

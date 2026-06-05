@@ -826,6 +826,14 @@ class OpenAICompatibleAgent:
                     tool_choice="auto",
                     max_tokens=_MAX_TOKENS,
                 )
+                if not response.choices:
+                    return AgentResponse(
+                        content="",
+                        error=(
+                            f"OpenAI endpoint returned no choices from {self.base_url}. "
+                            "Verify the model supports tool/function calling."
+                        ),
+                    )
                 msg = response.choices[0].message
                 if not msg.tool_calls:
                     text = msg.content or ""
