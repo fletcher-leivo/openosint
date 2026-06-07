@@ -25,13 +25,15 @@ OpenOSINT's documentation and interactive REPL link users directly to each provi
 
 ## Tiers
 
-| Tier | Benefits |
-|------|----------|
-| **Featured Integration** | Recommended/default provider for a tool category; logo + badge in README, website, and docs; "Featured (sponsored)" label in the Integrations table; listed first among providers for that category |
-| **Sponsor** | Logo + link in README, website, and release notes |
-| **Supporter** | Listed on the [website sponsors page](https://openosint.tech/#sponsors) |
+| Tier | Price | Benefits |
+|------|-------|----------|
+| **Featured Integration (Yearly)** | $2,000/year (billed annually) | Recommended/default provider for a tool category; logo + badge in README, website, and docs; "Featured (sponsored)" label in the Integrations table; listed first among providers for that category; API shown to OSINT practitioners at the moment of adoption |
+| **Featured Integration (Monthly)** | $220/month | Same Featured Integration benefits, billed monthly |
+| **Sponsor** | $100/month | Logo + link in README, website, and release notes |
+| **Backer** | $5/month | Listed on the [website sponsors page](https://openosint.tech/#sponsors) |
+| **Donation** | Custom | One-time or recurring contribution |
 
-Sponsorship is arranged by inquiry — reach out for current rates.
+Contribute via [Open Collective](https://opencollective.com/openosint_oss).
 
 See also: [README — Sponsor this project](README.md#sponsor-this-project).
 

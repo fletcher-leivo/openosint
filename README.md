@@ -557,13 +557,15 @@ OpenOSINT is used by OSINT practitioners, security researchers, and developers w
 
 ### Sponsorship tiers
 
-| Tier | Benefits |
-|------|----------|
-| **Featured Integration** | Recommended/default provider for a tool category; logo + badge in README, website, and docs; "Featured (sponsored)" label in the Integrations table; listed first among providers for that category |
-| **Sponsor** | Logo + link in README, website, and release notes |
-| **Supporter** | Listed on the [website sponsors page](https://openosint.tech/#sponsors) |
+| Tier | Price | Benefits |
+|------|-------|----------|
+| **Featured Integration (Yearly)** | $2,000/year (billed annually) | Recommended/default provider for a tool category; logo + badge in README, website, and docs; "Featured (sponsored)" label in the Integrations table; listed first among providers for that category; API shown to OSINT practitioners at the moment of adoption |
+| **Featured Integration (Monthly)** | $220/month | Same Featured Integration benefits, billed monthly |
+| **Sponsor** | $100/month | Logo + link in README, website, and release notes |
+| **Backer** | $5/month | Listed on the [website sponsors page](https://openosint.tech/#sponsors) |
+| **Donation** | Custom | One-time or recurring contribution |
 
-Featured Integration tiers are available — contribute via [Open Collective](https://opencollective.com/openosint_oss) or email [openosint@yahoo.com](mailto:openosint@yahoo.com?subject=OpenOSINT%20Sponsorship%20Inquiry) for current rates and custom arrangements.
+Contribute via [Open Collective](https://opencollective.com/openosint_oss) or email [openosint@yahoo.com](mailto:openosint@yahoo.com?subject=OpenOSINT%20Sponsorship%20Inquiry) for custom arrangements.
 
 Community integrations in the table above are eligible to upgrade to a Featured Integration sponsorship.
 
