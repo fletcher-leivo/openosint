@@ -8,6 +8,11 @@ returning structured results (title, URL, snippet) for each dork.
 `generate_dorks` remains fully offline and unchanged; this is a separate,
 opt-in tool that requires a Bright Data account.
 
+Request format: POST https://api.brightdata.com/request
+  { zone, url, format: "raw", data_format: "parsed_light" }
+With format="raw" + data_format="parsed_light", response.json() returns the
+parsed SERP data directly as {"organic": [...]} — no envelope wrapper.
+
 Requires BRIGHTDATA_API_KEY and BRIGHTDATA_SERP_ZONE environment variables.
 
 OpenOSINT earns a referral commission if you sign up through our link.
@@ -44,14 +49,9 @@ _MISSING_ZONE_MSG = (
     "Create a zone at https://get.brightdata.com/984ni58s2oad"
 )
 
-# NOTE: Confirmed against https://docs.brightdata.com/api-reference/rest-api/serp/serp-api.md
-# Request: POST https://api.brightdata.com/request
-#   { zone, url, format: "json" }  → response has .organic[]{link, title, description}
-# TODO: verify 'link' vs 'url' field name against a live response.
-
 
 def _build_google_url(dork_query: str) -> str:
-    return f"{_GOOGLE_SEARCH_BASE}{urllib.parse.quote(dork_query)}&hl=en"
+    return f"{_GOOGLE_SEARCH_BASE}{urllib.parse.quote(dork_query)}&hl=en&gl=us"
 
 
 def _fetch_serp(url: str, api_key: str, zone: str, timeout: int) -> dict:
@@ -62,7 +62,7 @@ def _fetch_serp(url: str, api_key: str, zone: str, timeout: int) -> dict:
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {api_key}",
             },
-            json={"zone": zone, "url": url, "format": "json"},
+            json={"zone": zone, "url": url, "format": "raw", "data_format": "parsed_light"},
             timeout=timeout,
         )
     except requests.RequestException as exc:
@@ -77,6 +77,7 @@ def _fetch_serp(url: str, api_key: str, zone: str, timeout: int) -> dict:
     if response.status_code != 200:
         raise ToolExecutionError(f"Bright Data SERP returned HTTP {response.status_code}.")
 
+    # format="raw" + data_format="parsed_light": response body IS the parsed JSON dict
     return response.json()
 
 
@@ -85,7 +86,7 @@ def _extract_organic(data: dict) -> list[dict]:
     results = []
     for item in organic[:5]:
         title = item.get("title", "")
-        # SERP API uses 'link'; fallback to 'url' in case field name differs in future versions
+        # Primary field is 'link'; defensive fallback to 'url'
         link = item.get("link", "") or item.get("url", "")
         snippet = item.get("description", "") or item.get("snippet", "")
         if link:
@@ -136,7 +137,9 @@ async def run_dorks_live_osint(
         google_url = _build_google_url(query)
         lines.append(f"[+] Dork: {query}")
         try:
-            data = await asyncio.to_thread(_fetch_serp, google_url, api_key, zone, timeout_seconds)
+            data = await asyncio.to_thread(
+                _fetch_serp, google_url, api_key, zone, timeout_seconds
+            )
             results = _extract_organic(data)
             if results:
                 for r in results:
