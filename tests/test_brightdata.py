@@ -5,6 +5,10 @@ Unit tests for the Bright Data integration tools:
   - scrape_url        (openosint/tools/scrape_url.py)
 
 All HTTP calls are mocked — no real network requests are made.
+
+Mock shapes match the verified API behaviour:
+  SERP (format=raw, data_format=parsed_light): response.json() → {"organic": [...]}
+  Web Unlocker (format=raw, data_format=markdown): response.text → "<markdown string>"
 """
 
 from __future__ import annotations
@@ -16,10 +20,19 @@ from unittest.mock import MagicMock, patch
 # ---------------------------------------------------------------------------
 
 
-def _mock_response(status_code: int, json_body: dict | None = None) -> MagicMock:
+def _mock_serp_response(status_code: int, json_body: dict | None = None) -> MagicMock:
+    """Mock for SERP calls: response.json() returns parsed SERP data."""
     resp = MagicMock()
     resp.status_code = status_code
     resp.json.return_value = json_body or {}
+    return resp
+
+
+def _mock_unlocker_response(status_code: int, text: str = "") -> MagicMock:
+    """Mock for Web Unlocker calls: response.text returns the markdown body directly."""
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.text = text
     return resp
 
 
@@ -68,6 +81,7 @@ class TestSearchDorksLive:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
 
+        # format="raw" + data_format="parsed_light": response.json() is the dict directly
         serp_payload = {
             "organic": [
                 {
@@ -77,7 +91,7 @@ class TestSearchDorksLive:
                 },
             ]
         }
-        mock_resp = _mock_response(200, serp_payload)
+        mock_resp = _mock_serp_response(200, serp_payload)
 
         with patch("openosint.tools.search_dorks_live.requests.post", return_value=mock_resp):
             from openosint.tools.search_dorks_live import run_dorks_live_osint
@@ -92,7 +106,7 @@ class TestSearchDorksLive:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
 
-        mock_resp = _mock_response(200, {"organic": []})
+        mock_resp = _mock_serp_response(200, {"organic": []})
         with patch("openosint.tools.search_dorks_live.requests.post", return_value=mock_resp):
             from openosint.tools.search_dorks_live import run_dorks_live_osint
 
@@ -104,7 +118,7 @@ class TestSearchDorksLive:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
 
-        mock_resp = _mock_response(200, {"organic": []})
+        mock_resp = _mock_serp_response(200, {"organic": []})
         with patch("openosint.tools.search_dorks_live.requests.post", return_value=mock_resp):
             from openosint.tools.search_dorks_live import run_dorks_live_osint
 
@@ -112,11 +126,48 @@ class TestSearchDorksLive:
 
         assert "no organic results" in result
 
+    async def test_organic_link_field_used_as_url(self, monkeypatch):
+        monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
+        monkeypatch.setenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
+
+        mock_resp = _mock_serp_response(
+            200,
+            {
+                "organic": [
+                    {"title": "T", "link": "https://primary-link.com", "description": ""},
+                ]
+            },
+        )
+        with patch("openosint.tools.search_dorks_live.requests.post", return_value=mock_resp):
+            from openosint.tools.search_dorks_live import run_dorks_live_osint
+
+            result = await run_dorks_live_osint("target", max_dorks=1)
+
+        assert "primary-link.com" in result
+
+    async def test_request_uses_format_raw_not_json(self, monkeypatch):
+        """Verify the outbound request body uses format=raw to prevent envelope wrapping."""
+        monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
+        monkeypatch.setenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
+
+        mock_resp = _mock_serp_response(200, {"organic": []})
+        with patch(
+            "openosint.tools.search_dorks_live.requests.post", return_value=mock_resp
+        ) as mock_post:
+            from openosint.tools.search_dorks_live import run_dorks_live_osint
+
+            await run_dorks_live_osint("target", max_dorks=1)
+
+        call_kwargs = mock_post.call_args.kwargs
+        payload = call_kwargs.get("json", {})
+        assert payload.get("format") == "raw", "Must use format=raw to avoid double-parse"
+        assert payload.get("data_format") == "parsed_light"
+
     async def test_http_401_returns_auth_error(self, monkeypatch):
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "bad-key")
         monkeypatch.setenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
 
-        mock_resp = _mock_response(401)
+        mock_resp = _mock_serp_response(401)
         with patch("openosint.tools.search_dorks_live.requests.post", return_value=mock_resp):
             from openosint.tools.search_dorks_live import run_dorks_live_osint
 
@@ -128,7 +179,7 @@ class TestSearchDorksLive:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
 
-        mock_resp = _mock_response(429)
+        mock_resp = _mock_serp_response(429)
         with patch("openosint.tools.search_dorks_live.requests.post", return_value=mock_resp):
             from openosint.tools.search_dorks_live import run_dorks_live_osint
 
@@ -140,7 +191,7 @@ class TestSearchDorksLive:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_SERP_ZONE", "serp_api1")
 
-        mock_resp = _mock_response(500)
+        mock_resp = _mock_serp_response(500)
         with patch("openosint.tools.search_dorks_live.requests.post", return_value=mock_resp):
             from openosint.tools.search_dorks_live import run_dorks_live_osint
 
@@ -211,12 +262,9 @@ class TestScrapeUrl:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
 
-        payload = {
-            "status_code": 200,
-            "headers": {"content-type": "text/html"},
-            "body": "# Example Domain\n\nThis domain is for illustrative examples.",
-        }
-        mock_resp = _mock_response(200, payload)
+        # format="raw": response.text IS the markdown string — no JSON envelope
+        markdown_body = "# Example Domain\n\nThis domain is for illustrative examples."
+        mock_resp = _mock_unlocker_response(200, text=markdown_body)
 
         with patch("openosint.tools.scrape_url.requests.post", return_value=mock_resp):
             from openosint.tools.scrape_url import run_scrape_url_osint
@@ -225,25 +273,27 @@ class TestScrapeUrl:
 
         assert "# Example Domain" in result
         assert "[Web Unlocker] URL: https://example.com" in result
-        assert "[Web Unlocker] Remote status: 200" in result
+        # No Remote status line — format=raw returns no envelope
+        assert "Remote status" not in result
 
-    async def test_success_result_contains_metadata_header(self, monkeypatch):
+    async def test_success_result_contains_url_header(self, monkeypatch):
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
 
-        mock_resp = _mock_response(200, {"status_code": 200, "headers": {}, "body": "content"})
+        mock_resp = _mock_unlocker_response(200, text="some markdown content")
         with patch("openosint.tools.scrape_url.requests.post", return_value=mock_resp):
             from openosint.tools.scrape_url import run_scrape_url_osint
 
             result = await run_scrape_url_osint("https://example.com")
 
-        assert "[Web Unlocker]" in result
+        assert "[Web Unlocker] URL: https://example.com" in result
+        assert "some markdown content" in result
 
     async def test_empty_body_shows_placeholder(self, monkeypatch):
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
 
-        mock_resp = _mock_response(200, {"status_code": 200, "headers": {}, "body": ""})
+        mock_resp = _mock_unlocker_response(200, text="")
         with patch("openosint.tools.scrape_url.requests.post", return_value=mock_resp):
             from openosint.tools.scrape_url import run_scrape_url_osint
 
@@ -251,11 +301,27 @@ class TestScrapeUrl:
 
         assert "empty response body" in result
 
+    async def test_request_uses_format_raw_not_json(self, monkeypatch):
+        """Verify the outbound request body uses format=raw to avoid JSON envelope parsing."""
+        monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
+        monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
+
+        mock_resp = _mock_unlocker_response(200, text="content")
+        with patch("openosint.tools.scrape_url.requests.post", return_value=mock_resp) as mock_post:
+            from openosint.tools.scrape_url import run_scrape_url_osint
+
+            await run_scrape_url_osint("https://example.com")
+
+        call_kwargs = mock_post.call_args.kwargs
+        payload = call_kwargs.get("json", {})
+        assert payload.get("format") == "raw", "Must use format=raw to avoid envelope parsing"
+        assert payload.get("data_format") == "markdown"
+
     async def test_http_401_returns_auth_error(self, monkeypatch):
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "bad-key")
         monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
 
-        mock_resp = _mock_response(401)
+        mock_resp = _mock_unlocker_response(401)
         with patch("openosint.tools.scrape_url.requests.post", return_value=mock_resp):
             from openosint.tools.scrape_url import run_scrape_url_osint
 
@@ -267,7 +333,7 @@ class TestScrapeUrl:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
 
-        mock_resp = _mock_response(403)
+        mock_resp = _mock_unlocker_response(403)
         with patch("openosint.tools.scrape_url.requests.post", return_value=mock_resp):
             from openosint.tools.scrape_url import run_scrape_url_osint
 
@@ -279,7 +345,7 @@ class TestScrapeUrl:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
 
-        mock_resp = _mock_response(429)
+        mock_resp = _mock_unlocker_response(429)
         with patch("openosint.tools.scrape_url.requests.post", return_value=mock_resp):
             from openosint.tools.scrape_url import run_scrape_url_osint
 
@@ -291,7 +357,7 @@ class TestScrapeUrl:
         monkeypatch.setenv("BRIGHTDATA_API_KEY", "test-key")
         monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "web_unlocker1")
 
-        mock_resp = _mock_response(500)
+        mock_resp = _mock_unlocker_response(500)
         with patch("openosint.tools.scrape_url.requests.post", return_value=mock_resp):
             from openosint.tools.scrape_url import run_scrape_url_osint
 
