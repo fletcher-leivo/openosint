@@ -110,11 +110,17 @@ OpenOSINT is an AI agent for Open Source Intelligence with three interfaces: an 
 - **Session history** — all REPL sessions saved to `~/.openosint/history/`; browse with `openosint history`
 - **Web UI** — browser-based AI chat with streaming output, tool cards, and light/dark theme toggle
 
-## 🎯 Ready-made investigation prompts
+## 🧠 From tools to method — AI OSINT Prompt Pack
 
-OpenOSINT gives you the engine. The **AI OSINT Prompt Pack** gives you 30+ tested prompts — email, username, domain, IP, phone, company due diligence, image clues, verification, and reporting — all built around the scope → collect → pivot → verify → document workflow, so the model collects and pivots against real sources instead of guessing.
+OpenOSINT gives you the tooling. The **AI OSINT Prompt Pack** gives you the *method*: 30+ tested prompts that make ChatGPT / Claude **collect → pivot → verify** against real public sources instead of hallucinating.
 
-👉 **[Get the Prompt Pack ($19) →](https://tommasodev.gumroad.com/l/ai-osint-prompt-pack?utm_source=github_readme)**
+- Email, username, domain, IP, phone, company due-diligence, image & reporting prompts
+- One repeatable investigation flow + an ethics & legal primer
+- 7-page PDF · instant download · pairs directly with OpenOSINT
+
+**→ [Get the Prompt Pack](https://buy.polar.sh/polar_cl_0sipbBYjR01q4d9leCAtepteFDSGkPfy1TKoV3wIgkr?utm_source=github&utm_medium=readme&utm_campaign=promptpack)**
+
+_Buying it directly funds OpenOSINT's development. 🙏_
 
 ## Installation
 
@@ -672,7 +678,7 @@ Set `ANTHROPIC_API_KEY` (and optionally `HIBP_API_KEY`, `IPINFO_TOKEN`) in a `.e
 
 ## Resources
 
-- **[AI OSINT Prompt Pack](https://tommasodev.gumroad.com/l/ai-osint-prompt-pack)** — 30+ ready-to-use prompts for faster, ethical OSINT investigations with any AI assistant. Built to pair with OpenOSINT.
+- **[AI OSINT Prompt Pack](https://buy.polar.sh/polar_cl_0sipbBYjR01q4d9leCAtepteFDSGkPfy1TKoV3wIgkr?utm_source=github&utm_medium=readme&utm_campaign=promptpack)** — 30+ ready-to-use prompts for faster, ethical OSINT investigations with any AI assistant. Built to pair with OpenOSINT.
 
 ## Sponsor this project
 
