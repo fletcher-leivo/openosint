@@ -359,6 +359,100 @@ def _format_footprint(output: str) -> str:
     return "\n".join(rendered).rstrip()
 
 
+def _format_ip_info(output: str) -> str:
+    """Render ipinfo.io output ([+] Key: Value) as a Markdown table."""
+    rows: list[tuple[str, str]] = []
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[+] ") and ": " in stripped:
+            content = stripped[4:]
+            key, _, value = content.partition(": ")
+            rows.append((key.strip(), value.strip()))
+    if not rows:
+        return f"```\n{output.strip()}\n```"
+    lines = ["| Field | Value |", "|---|---|"]
+    for key, value in rows:
+        lines.append(f"| {key} | {value} |")
+    return "\n".join(lines)
+
+
+def _format_virustotal(output: str) -> str:
+    """Render [VirusTotal] Key: Value lines as a Markdown table."""
+    rows: list[tuple[str, str]] = []
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[VirusTotal] ") and ": " in stripped:
+            content = stripped[len("[VirusTotal] "):]
+            key, _, value = content.partition(": ")
+            rows.append((key.strip(), value.strip()))
+    if not rows:
+        return f"```\n{output.strip()}\n```"
+    lines = ["| Field | Value |", "|---|---|"]
+    for key, value in rows:
+        lines.append(f"| {key} | {value} |")
+    return "\n".join(lines)
+
+
+def _format_paste(output: str) -> str:
+    """Render psbdmp paste results as a numbered link list."""
+    stripped = output.strip()
+    if not stripped or stripped.startswith("No pastes found"):
+        return "*No paste-site mentions found.*"
+    links: list[str] = []
+    header: str = ""
+    for line in output.splitlines():
+        s = line.strip()
+        if s.startswith("Found in "):
+            header = s
+        elif s.startswith("[+] http"):
+            url_date = s[4:].strip()
+            url, _, date = url_date.partition(" (")
+            date = date.rstrip(")")
+            label = date if date else url
+            links.append(f"[{label}]({url.strip()})")
+    if not links:
+        return f"```\n{stripped}\n```"
+    result: list[str] = []
+    if header:
+        result.append(f"**{header}**")
+        result.append("")
+    result.extend(f"{i}. {link}" for i, link in enumerate(links, 1))
+    return "\n".join(result)
+
+
+def _format_username(output: str) -> str:
+    """Render sherlock [+] Platform: URL output as a Markdown table."""
+    rows: list[tuple[str, str]] = []
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[+] ") and ": http" in stripped:
+            content = stripped[4:]
+            platform, _, url = content.partition(": ")
+            if url.startswith("http"):
+                rows.append((platform.strip(), url.strip()))
+    if not rows:
+        return f"```\n{output.strip()}\n```"
+    lines = ["| Platform | Profile URL |", "|---|---|"]
+    for platform, url in rows:
+        lines.append(f"| {platform} | [{url}]({url}) |")
+    return "\n".join(lines)
+
+
+def _format_holehe(output: str) -> str:
+    """Render holehe [+] platform lines as a bullet list of found registrations."""
+    found: list[str] = []
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[+] "):
+            platform = stripped[4:].strip()
+            if platform:
+                host = platform if "." in platform else f"{platform}.com"
+                found.append(f"- [{host}](https://{host})")
+    if not found:
+        return "*No registered accounts found.*"
+    return "\n".join(found)
+
+
 def _format_step_output(tool_name: str, output: str) -> str:
     """Dispatch to a tool-specific Markdown formatter, falling back to fenced code."""
     if tool_name == "search_whois":
@@ -371,6 +465,16 @@ def _format_step_output(tool_name: str, output: str) -> str:
         return _format_subdomains(output)
     if tool_name == "search_footprint":
         return _format_footprint(output)
+    if tool_name == "search_ip":
+        return _format_ip_info(output)
+    if tool_name == "search_virustotal":
+        return _format_virustotal(output)
+    if tool_name == "search_paste":
+        return _format_paste(output)
+    if tool_name == "search_username":
+        return _format_username(output)
+    if tool_name == "search_email":
+        return _format_holehe(output)
     return f"```\n{output.strip()}\n```"
 
 
@@ -581,6 +685,36 @@ def _build_summary(
     related = len(tool_entities.get("search_footprint", {}).get(EntityType.DOMAIN, set()))
     if related:
         lines.append(f"- **Related domains in search results:** {related}")
+
+    # ISP/org from IP geolocation
+    ip_orgs = len(tool_entities.get("search_ip", {}).get(EntityType.ORG, set()))
+    if ip_orgs:
+        lines.append(f"- **ISP / Hosting org:** {ip_orgs}")
+
+    # ASN — union of search_ip and search_virustotal (deduplicated by value)
+    ip_asns = len(
+        tool_entities.get("search_ip", {}).get(EntityType.ASN, set())
+        | tool_entities.get("search_virustotal", {}).get(EntityType.ASN, set())
+    )
+    if ip_asns:
+        lines.append(f"- **ASNs identified:** {ip_asns}")
+
+    # Hostnames from Shodan
+    shodan_hostnames = len(
+        tool_entities.get("search_shodan", {}).get(EntityType.DOMAIN, set())
+    )
+    if shodan_hostnames:
+        lines.append(f"- **Hostnames from Shodan:** {shodan_hostnames}")
+
+    # Platform accounts from sherlock
+    accounts = len(tool_entities.get("search_username", {}).get(EntityType.URL, set()))
+    if accounts:
+        lines.append(f"- **Platform accounts found:** {accounts}")
+
+    # Registered platforms from holehe
+    registered = len(tool_entities.get("search_email", {}).get(EntityType.URL, set()))
+    if registered:
+        lines.append(f"- **Email registrations found:** {registered}")
 
     return "\n".join(lines)
 

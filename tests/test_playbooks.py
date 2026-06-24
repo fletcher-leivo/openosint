@@ -391,3 +391,334 @@ class TestPlaybookCLI:
         parser = _build_parser()
         args = parser.parse_args(["--no-pdf", "playbook", "domain", "example.com"])
         assert args.is_pdf_disabled is True
+
+
+# ---------------------------------------------------------------------------
+# Synthetic outputs for ip / person recipes
+# ---------------------------------------------------------------------------
+
+_IP_OUTPUT = (
+    "[+] IP: 1.2.3.4\n"
+    "[+] Hostname: ptr.example.net\n"
+    "[+] Org: AS12345 Example ISP\n"
+    "[+] City: London\n"
+    "[+] Country: GB\n"
+)
+_SHODAN_OUTPUT = (
+    "[+] Org: Example ISP\n"
+    "[+] Hostnames: mail.example.com, cdn.example.net\n"
+    "[+] Open ports: 80, 443\n"
+)
+_VT_OUTPUT = (
+    "[VirusTotal] IP: 1.2.3.4\n"
+    "[VirusTotal] ASN: AS12345 Example ISP\n"
+    "[VirusTotal] Malicious votes: 0/91\n"
+)
+_PASTE_OUTPUT = (
+    "Found in 2 paste(s) for 'johndoe99':\n\n"
+    "[+] https://pastebin.com/abc123 (2024-01-15)\n"
+    "[+] https://pastebin.com/def456 (2024-02-20)\n"
+)
+_USER_OUTPUT = (
+    "[+] Twitter: https://twitter.com/johndoe99\n"
+    "[+] GitHub: https://github.com/johndoe99\n"
+)
+_HOLEHE_OUTPUT = (
+    "[+] twitter.com\n"
+    "[+] github.com\n"
+    "[-] facebook.com\n"
+)
+
+_IP_CANNED = {
+    "search_ip": _IP_OUTPUT,
+    "generate_dorks": _DORKS_OUTPUT,
+    "search_shodan": _SHODAN_OUTPUT,
+    "search_virustotal": _VT_OUTPUT,
+}
+
+_PERSON_CANNED = {
+    "generate_dorks": _DORKS_OUTPUT,
+    "search_paste": _PASTE_OUTPUT,
+    "search_username": _USER_OUTPUT,
+    "search_email": _HOLEHE_OUTPUT,
+}
+
+
+# ---------------------------------------------------------------------------
+# TestIPPlaybook
+# ---------------------------------------------------------------------------
+
+
+class TestIPPlaybook:
+    async def test_ip_cold_start_all_sections_present(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SHODAN_API_KEY", raising=False)
+        monkeypatch.delenv("VIRUSTOTAL_API_KEY", raising=False)
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("ip")
+        zero_config_mocks = {
+            "search_ip": AsyncMock(return_value=_IP_OUTPUT),
+            "generate_dorks": AsyncMock(return_value=_DORKS_OUTPUT),
+        }
+        with patch.dict(TOOL_MAP, zero_config_mocks):
+            report_path = await run_playbook(
+                recipe, "1.2.3.4", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        content = report_path.read_text(encoding="utf-8")
+        for heading in [
+            "## Geolocation & ASN",
+            "## Google Dork URLs",
+            "## Shodan Host Intelligence",
+            "## VirusTotal Reputation",
+        ]:
+            assert heading in content, f"Missing: {heading}"
+
+    async def test_ip_gated_steps_render_info_block(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SHODAN_API_KEY", raising=False)
+        monkeypatch.delenv("VIRUSTOTAL_API_KEY", raising=False)
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("ip")
+        zero_config_mocks = {
+            "search_ip": AsyncMock(return_value=_IP_OUTPUT),
+            "generate_dorks": AsyncMock(return_value=_DORKS_OUTPUT),
+        }
+        with patch.dict(TOOL_MAP, zero_config_mocks):
+            report_path = await run_playbook(
+                recipe, "1.2.3.4", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        content = report_path.read_text(encoding="utf-8")
+        assert "ℹ️ Skipped" in content
+        assert "⚠ Step error" not in content
+
+    async def test_ip_summary_counts_correct(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("SHODAN_API_KEY", "fake")
+        monkeypatch.setenv("VIRUSTOTAL_API_KEY", "fake")
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("ip")
+        mocks = {tool: AsyncMock(return_value=out) for tool, out in _IP_CANNED.items()}
+        with patch.dict(TOOL_MAP, mocks):
+            report_path = await run_playbook(
+                recipe, "1.2.3.4", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        content = report_path.read_text(encoding="utf-8")
+        assert "ISP / Hosting org:** 1" in content, content
+        assert "ASNs identified:** 1" in content, content
+
+    async def test_ip_report_filename_convention(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SHODAN_API_KEY", raising=False)
+        monkeypatch.delenv("VIRUSTOTAL_API_KEY", raising=False)
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("ip")
+        mocks = {
+            "search_ip": AsyncMock(return_value=_IP_OUTPUT),
+            "generate_dorks": AsyncMock(return_value=_DORKS_OUTPUT),
+        }
+        with patch.dict(TOOL_MAP, mocks):
+            report_path = await run_playbook(
+                recipe, "1.2.3.4", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        assert re.match(
+            r"\d{4}-\d{2}-\d{2}_.*_ip_report\.md", report_path.name
+        ), f"Unexpected filename: {report_path.name}"
+
+    async def test_ip_cold_start_no_crash(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SHODAN_API_KEY", raising=False)
+        monkeypatch.delenv("VIRUSTOTAL_API_KEY", raising=False)
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("ip")
+        mocks = {
+            "search_ip": AsyncMock(return_value=_IP_OUTPUT),
+            "generate_dorks": AsyncMock(return_value=_DORKS_OUTPUT),
+        }
+        with patch.dict(TOOL_MAP, mocks):
+            report_path = await run_playbook(
+                recipe, "1.2.3.4", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        assert report_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# TestPersonPlaybook
+# ---------------------------------------------------------------------------
+
+
+class TestPersonPlaybook:
+    async def test_person_cold_start_all_sections_present(self, tmp_path, monkeypatch):
+        import shutil as _shutil
+
+        monkeypatch.setattr(
+            "openosint.playbooks.runner.shutil",
+            type(
+                "shutil",
+                (),
+                {
+                    "which": staticmethod(
+                        lambda b: None if b in {"sherlock", "holehe"} else _shutil.which(b)
+                    )
+                },
+            )(),
+        )
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("person")
+        zero_config_mocks = {
+            "generate_dorks": AsyncMock(return_value=_DORKS_OUTPUT),
+            "search_paste": AsyncMock(return_value=_PASTE_OUTPUT),
+        }
+        with patch.dict(TOOL_MAP, zero_config_mocks):
+            report_path = await run_playbook(
+                recipe, "johndoe99", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        content = report_path.read_text(encoding="utf-8")
+        for heading in [
+            "## Google Dork URLs",
+            "## Paste Site Mentions",
+            "## Username Enumeration",
+            "## Email Account Enumeration",
+        ]:
+            assert heading in content, f"Missing: {heading}"
+
+    async def test_person_gated_steps_render_info_block(self, tmp_path, monkeypatch):
+        import shutil as _shutil
+
+        monkeypatch.setattr(
+            "openosint.playbooks.runner.shutil",
+            type(
+                "shutil",
+                (),
+                {
+                    "which": staticmethod(
+                        lambda b: None if b in {"sherlock", "holehe"} else _shutil.which(b)
+                    )
+                },
+            )(),
+        )
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("person")
+        zero_config_mocks = {
+            "generate_dorks": AsyncMock(return_value=_DORKS_OUTPUT),
+            "search_paste": AsyncMock(return_value=_PASTE_OUTPUT),
+        }
+        with patch.dict(TOOL_MAP, zero_config_mocks):
+            report_path = await run_playbook(
+                recipe, "johndoe99", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        content = report_path.read_text(encoding="utf-8")
+        assert "ℹ️ Skipped" in content
+        assert "⚠ Step error" not in content
+
+    async def test_person_summary_counts_correct(self, tmp_path, monkeypatch):
+        import shutil as _shutil
+
+        monkeypatch.setattr(
+            "openosint.playbooks.runner.shutil",
+            type(
+                "shutil",
+                (),
+                {"which": staticmethod(lambda b: _shutil.which(b))},
+            )(),
+        )
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("person")
+        mocks = {tool: AsyncMock(return_value=out) for tool, out in _PERSON_CANNED.items()}
+        with patch.dict(TOOL_MAP, mocks):
+            report_path = await run_playbook(
+                recipe, "johndoe99", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        content = report_path.read_text(encoding="utf-8")
+        assert "Platform accounts found:** 2" in content, content
+        assert "Email registrations found:** 2" in content, content
+
+    async def test_person_report_filename_convention(self, tmp_path, monkeypatch):
+        import shutil as _shutil
+
+        monkeypatch.setattr(
+            "openosint.playbooks.runner.shutil",
+            type(
+                "shutil",
+                (),
+                {
+                    "which": staticmethod(
+                        lambda b: None if b in {"sherlock", "holehe"} else _shutil.which(b)
+                    )
+                },
+            )(),
+        )
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("person")
+        mocks = {
+            "generate_dorks": AsyncMock(return_value=_DORKS_OUTPUT),
+            "search_paste": AsyncMock(return_value=_PASTE_OUTPUT),
+        }
+        with patch.dict(TOOL_MAP, mocks):
+            report_path = await run_playbook(
+                recipe, "johndoe99", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        assert re.match(
+            r"\d{4}-\d{2}-\d{2}_.*_person_report\.md", report_path.name
+        ), f"Unexpected filename: {report_path.name}"
+
+    async def test_person_cold_start_no_crash(self, tmp_path, monkeypatch):
+        import shutil as _shutil
+
+        monkeypatch.setattr(
+            "openosint.playbooks.runner.shutil",
+            type(
+                "shutil",
+                (),
+                {
+                    "which": staticmethod(
+                        lambda b: None if b in {"sherlock", "holehe"} else _shutil.which(b)
+                    )
+                },
+            )(),
+        )
+
+        from openosint.playbooks.loader import load_recipe
+        from openosint.playbooks.runner import TOOL_MAP, run_playbook
+
+        recipe = load_recipe("person")
+        mocks = {
+            "generate_dorks": AsyncMock(return_value=_DORKS_OUTPUT),
+            "search_paste": AsyncMock(return_value=_PASTE_OUTPUT),
+        }
+        with patch.dict(TOOL_MAP, mocks):
+            report_path = await run_playbook(
+                recipe, "johndoe99", is_pdf_disabled=True, reports_dir=tmp_path
+            )
+
+        assert report_path.exists()
