@@ -747,6 +747,53 @@ class TestRateLimiting:
 # ---------------------------------------------------------------------------
 
 
+class TestDemoMode:
+    """OPENOSINT_DEMO_MODE=true: /api/health exposes flag; /api/chat is blocked server-side."""
+
+    @pytest_asyncio.fixture
+    async def demo_client(self, monkeypatch):
+        import openosint.web_server as ws
+        monkeypatch.setattr(ws, "DEMO_MODE", True)
+        from openosint.web_server import _RATE_STORE
+        _RATE_STORE.clear()
+        app = ws.create_app()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            yield c
+        _RATE_STORE.clear()
+
+    async def test_health_exposes_demo_mode_true(self, demo_client):
+        resp = await demo_client.get("/api/health")
+        assert resp.status_code == 200
+        assert resp.json()["demo_mode"] is True
+
+    async def test_health_demo_mode_false_by_default(self, http_client):
+        resp = await http_client.get("/api/health")
+        assert resp.status_code == 200
+        assert resp.json()["demo_mode"] is False
+
+    async def test_chat_returns_demo_block_not_backend(self, demo_client):
+        """POST /api/chat in demo mode returns a structured SSE error and
+        never calls _select_chat_backend."""
+        called = []
+
+        def spy_select(req):
+            called.append(req)
+            return "claude"
+
+        with patch("openosint.web_server._select_chat_backend", side_effect=spy_select):
+            resp = await demo_client.post(
+                "/api/chat",
+                json={"message": "investigate 8.8.8.8"},
+            )
+
+        assert resp.status_code == 200
+        assert len(called) == 0, "_select_chat_backend must not be called in demo mode"
+        body = resp.text
+        assert '"type": "error"' in body
+        assert "demo mode" in body.lower()
+        assert '"type": "done"' in body
+
+
 class TestApiKeysNotLogged:
     async def test_secret_key_absent_from_log_records(self, http_client, caplog):
         secret = "top-secret-key-abc123"

@@ -1138,6 +1138,7 @@ def create_app() -> FastAPI:
         return {
             "status": "ok",
             "version": _VERSION,
+            "demo_mode": DEMO_MODE,
             "setup_complete": _is_setup_complete(),
             "ai_backend": ai_backend,
             "ollama_host": ollama_host,
@@ -1369,6 +1370,16 @@ def create_app() -> FastAPI:
 
     @app.post("/api/chat")
     async def chat(req: ChatRequest):
+        if DEMO_MODE:
+            async def _demo_block():
+                yield f'data: {json.dumps({"type": "error", "message": "Server-side LLM is disabled in demo mode — add your own API key in Settings."})}\n\n'
+                yield f'data: {json.dumps({"type": "done"})}\n\n'
+            return StreamingResponse(
+                _demo_block(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+
         messages: list[dict] = []
         for h in req.history:
             role = h.get("role", "user")
@@ -1432,6 +1443,7 @@ def create_app() -> FastAPI:
     # POST /api/demo/chat  — pre-scripted demo stream, no API key needed
     # ------------------------------------------------------------------
 
+    # TODO: /api/demo/chat is currently unwired from the UI — decide wire-or-delete post-deploy
     @app.post("/api/demo/chat")
     async def demo_chat(req: ChatRequest):
         async def generate():
