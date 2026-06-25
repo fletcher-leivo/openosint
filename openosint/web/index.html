@@ -394,8 +394,23 @@
   </div>
 </header>
 
+<!-- Mobile tab bar — only visible when graph has data -->
+<div x-show="hasGraphData" x-cloak class="flex-none flex md:hidden border-b border-app bg-surface text-xs">
+  <button @click="activeTab = 'chat'"
+          :class="activeTab === 'chat' ? 'border-b-2 border-accent text-primary' : 'text-muted'"
+          class="flex-1 py-2 transition-colors">Chat</button>
+  <button @click="activeTab = 'graph'; $nextTick(() => window._graphFns?.resizeGraph())"
+          :class="activeTab === 'graph' ? 'border-b-2 border-accent text-primary' : 'text-muted'"
+          class="flex-1 py-2 transition-colors">Graph</button>
+</div>
+
+<!-- Main content row: chat left, graph right -->
+<div class="flex-1 flex overflow-hidden min-h-0">
+
 <!-- CHAT AREA -->
-<div id="chat-area" class="flex-1 overflow-y-auto">
+<div id="chat-area"
+     class="overflow-y-auto"
+     :class="activeTab === 'graph' ? 'hidden md:block md:flex-1' : 'flex-1'">
   <div class="max-w-2xl mx-auto px-4 py-6 min-h-full flex flex-col">
 
     <!-- empty state -->
@@ -515,7 +530,40 @@
     </div>
 
   </div>
-</div>
+</div><!-- end chat-area -->
+
+<!-- GRAPH PANEL (desktop: 42% right column; mobile: full-screen on graph tab) -->
+<div class="border-l border-app flex-col bg-app relative"
+     :class="hasGraphData
+       ? (activeTab === 'graph' ? 'flex w-full md:w-[42%] md:flex-none' : 'hidden md:flex md:w-[42%] md:flex-none')
+       : 'hidden'">
+  <!-- panel header -->
+  <div class="flex-none h-9 px-3 flex items-center gap-2 border-b border-app bg-surface text-xs">
+    <span class="text-muted font-mono flex-1">Entity Graph</span>
+    <span x-show="graphNodeCapHit" class="text-warning mr-1">⚠ 300-node cap</span>
+    <button @click="doExportPng()" title="Export PNG"
+            class="text-muted hover:text-secondary transition-colors px-1.5 py-0.5 rounded hover:bg-border-50">PNG</button>
+    <button @click="doExportJson()" title="Export JSON"
+            class="text-muted hover:text-secondary transition-colors px-1.5 py-0.5 rounded hover:bg-border-50">JSON</button>
+  </div>
+  <!-- Cytoscape canvas -->
+  <div id="graph-container" class="flex-1" style="min-height:0;"></div>
+  <!-- Pivot popover (shown on node tap) -->
+  <div x-show="graphPivotNode" x-cloak
+       class="absolute bottom-4 right-4 bg-surface border border-app rounded-lg shadow-xl p-3 z-20 w-56 text-xs c-fadein">
+    <div class="flex items-center justify-between mb-1.5">
+      <span class="font-mono text-accent uppercase tracking-wider" x-text="graphPivotNode?.type || ''"></span>
+      <button @click="graphPivotNode = null" class="text-muted hover:text-primary transition-colors leading-none">✕</button>
+    </div>
+    <p class="text-primary font-medium mb-3 break-all leading-snug" x-text="graphPivotNode?.label || graphPivotNode?.id || ''"></p>
+    <button @click="pivotOnNode()"
+            class="w-full py-1.5 rounded-md bg-accent hover:bg-accent-80 text-bg text-xs font-medium transition-colors">
+      Pivot → Investigate
+    </button>
+  </div>
+</div><!-- end graph panel -->
+
+</div><!-- end main content row -->
 
 <!-- INPUT BAR -->
 <div class="flex-none bg-app border-t border-app px-4 py-3">
@@ -575,6 +623,11 @@ document.addEventListener('alpine:init', () => {
     isLight: false,
     agentLoopReady: false,
     serverSideFallback: true,
+    hasGraphData: false,
+    activeTab: 'chat',
+    graphNodeCapHit: false,
+    graphPivotNode: null,
+    currentTarget: '',
 
     // BYOK LLM settings — persisted to sessionStorage (cleared on tab close)
     byok: { provider: 'anthropic', apiKey: '', baseUrl: '', model: '' },
@@ -628,11 +681,22 @@ document.addEventListener('alpine:init', () => {
       const theme = localStorage.getItem('openosint-theme') || 'dark';
       this.isLight = theme === 'light';
       if (this.isLight) document.documentElement.classList.add('light');
-      // Guard for ES module race (amendment 5): agent-loop.js may not be ready yet.
-      if (window._agentLoopReady) {
+      // Guard for ES module race (amendment 5): modules may not be ready yet.
+      const _onModulesReady = () => {
         this.agentLoopReady = true;
+        const container = document.getElementById('graph-container');
+        if (container && window._graphFns) {
+          window._graphFns.initGraph(container);
+          window._graphPivotCallback = (nodeId, nodeData) => {
+            this.graphPivotNode = { id: nodeId, ...nodeData };
+          };
+        }
+        document.addEventListener('graph-node-cap', () => { this.graphNodeCapHit = true; });
+      };
+      if (window._agentLoopReady) {
+        _onModulesReady();
       } else {
-        document.addEventListener('agent-loop-ready', () => { this.agentLoopReady = true; }, { once: true });
+        document.addEventListener('agent-loop-ready', _onModulesReady, { once: true });
       }
       this.$nextTick(() => {
         this.fetchHealth();
@@ -806,6 +870,7 @@ document.addEventListener('alpine:init', () => {
       };
 
       let fullText = '';
+      const toolInputMap = {}; // tool_name → last input, for graph normalizer
 
       const onEvent = (evt) => {
         if (evt.type === 'text') {
@@ -826,6 +891,16 @@ document.addEventListener('alpine:init', () => {
           if (last?.streaming) last.streaming = false;
           parts.push({ type: 'tool', tool: evt.tool, input: evt.input || '', status: 'running', output: '', elapsed: null, collapsed: false, isDemo: false });
           this.scrollToBottom();
+          // Graph: record tool input for normalizer; add root node on first call.
+          toolInputMap[evt.tool] = evt.input || '';
+          if (window._graphFns && window._makeTargetNode && evt.input) {
+            if (!this.currentTarget) {
+              this.currentTarget = evt.input;
+              const rootNode = window._makeTargetNode(evt.input);
+              window._graphFns.addToGraph({ nodes: [rootNode], edges: [] });
+              this.hasGraphData = true;
+            }
+          }
 
         } else if (evt.type === 'tool_result') {
           const parts = this.messages[msgIdx].parts;
@@ -839,6 +914,17 @@ document.addEventListener('alpine:init', () => {
             }
           }
           this.scrollToBottom();
+          // Graph: extract entities from tool output and merge into graph.
+          if (window._graphFns && window._extractEntities) {
+            const toolTarget = toolInputMap[evt.tool] || this.currentTarget;
+            if (toolTarget) {
+              const { nodes, edges } = window._extractEntities(evt.tool, toolTarget, evt.output || '');
+              if (nodes.length || edges.length) {
+                window._graphFns.addToGraph({ nodes, edges });
+                if (!this.hasGraphData && nodes.length) this.hasGraphData = true;
+              }
+            }
+          }
 
         } else if (evt.type === 'key_required') {
           const keys = (evt.missing_keys || []).join(', ');
@@ -888,6 +974,7 @@ document.addEventListener('alpine:init', () => {
 
     // Server-side SSE path (self-hosters with env keys)
     async _sendMessageServerSide(text, msgIdx) {
+      const sseToolInputMap = {}; // tool_name → last input, for graph normalizer
       const payload = {
         message: text,
         history: this.chatHistory.slice(0, -1),
@@ -963,6 +1050,13 @@ document.addEventListener('alpine:init', () => {
                 status: 'running', output: '', elapsed: null, collapsed: false,
               });
               this.scrollToBottom();
+              // Graph: record input; add root node on first tool call.
+              sseToolInputMap[evt.tool] = evt.input || '';
+              if (window._graphFns && window._makeTargetNode && evt.input && !this.currentTarget) {
+                this.currentTarget = evt.input;
+                window._graphFns.addToGraph({ nodes: [window._makeTargetNode(evt.input)], edges: [] });
+                this.hasGraphData = true;
+              }
 
             } else if (evt.type === 'tool_result') {
               const parts = this.messages[msgIdx].parts;
@@ -975,6 +1069,17 @@ document.addEventListener('alpine:init', () => {
                 }
               }
               this.scrollToBottom();
+              // Graph: extract and merge entities.
+              if (window._graphFns && window._extractEntities) {
+                const toolTarget = sseToolInputMap[evt.tool] || this.currentTarget;
+                if (toolTarget) {
+                  const { nodes, edges } = window._extractEntities(evt.tool, toolTarget, evt.output || '');
+                  if (nodes.length || edges.length) {
+                    window._graphFns.addToGraph({ nodes, edges });
+                    if (!this.hasGraphData && nodes.length) this.hasGraphData = true;
+                  }
+                }
+              }
 
             } else if (evt.type === 'done') {
               flushText(); break outer;
@@ -1014,7 +1119,12 @@ document.addEventListener('alpine:init', () => {
     },
 
     // UI helpers
-    clearConversation() { this.messages = []; this.chatHistory = []; },
+    clearConversation() {
+      this.messages = []; this.chatHistory = [];
+      this.hasGraphData = false; this.graphNodeCapHit = false;
+      this.graphPivotNode = null; this.currentTarget = '';
+      if (window._graphFns) window._graphFns.clearGraph();
+    },
 
     scrollToBottom() {
       this.$nextTick(() => {
@@ -1142,6 +1252,30 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    // Entity graph actions
+    doExportPng() {
+      if (!window._graphFns) return;
+      const dataUrl = window._graphFns.exportPng();
+      if (!dataUrl) return;
+      const a = document.createElement('a');
+      a.href = dataUrl; a.download = 'openosint-graph.png'; a.click();
+    },
+    doExportJson() {
+      if (!window._graphFns) return;
+      const data = window._graphFns.exportJson();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'openosint-graph.json'; a.click();
+    },
+    pivotOnNode() {
+      if (!this.graphPivotNode) return;
+      const label = this.graphPivotNode.label || this.graphPivotNode.id;
+      this.graphPivotNode = null;
+      this.activeTab = 'chat';
+      this.input = `Investigate ${label}`;
+      this.sendMessage();
+    },
+
     async saveOpenai() {
       this.openaiTestResult = 'Saving...';
       this.openaiTestOk = false;
@@ -1175,11 +1309,18 @@ document.addEventListener('alpine:init', () => {
 });
 </script>
 <script src="/static/config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/cytoscape-fcose.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 <script type="module">
   import { runAgentLoop } from '/static/agent-loop.js';
-  window._runAgentLoop = runAgentLoop;
-  window._agentLoopReady = true;
+  import { makeTargetNode, extractEntities } from '/static/entity-graph.js';
+  import { initGraph, addToGraph, clearGraph, resizeGraph, exportPng, exportJson } from '/static/graph-renderer.js';
+  window._runAgentLoop    = runAgentLoop;
+  window._makeTargetNode  = makeTargetNode;
+  window._extractEntities = extractEntities;
+  window._graphFns        = { initGraph, addToGraph, clearGraph, resizeGraph, exportPng, exportJson };
+  window._agentLoopReady  = true;
   document.dispatchEvent(new Event('agent-loop-ready'));
 </script>
 </body>
