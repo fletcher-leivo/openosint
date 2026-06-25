@@ -29,7 +29,16 @@ mcp-name: io.github.OpenOSINT/openosint
 </div>
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/OpenOSINT/OpenOSINT/v2.19.1/assets/demo.gif" alt="OpenOSINT terminal demo" width="900" />
+  <a href="https://raw.githubusercontent.com/OpenOSINT/OpenOSINT/main/docs/assets/demo-web-graph.mp4">
+    <img src="https://raw.githubusercontent.com/OpenOSINT/OpenOSINT/main/docs/assets/demo-web-graph.gif"
+         alt="OpenOSINT Web UI — live entity correlation graph demo: investigating openosint.tech"
+         width="900" />
+  </a>
+  <p><a href="https://demo.openosint.tech">Try the live demo →</a></p>
+</div>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/OpenOSINT/OpenOSINT/v2.19.1/assets/demo.gif" alt="OpenOSINT terminal REPL demo" width="900" />
 </div>
 
 ```bash
@@ -704,6 +713,17 @@ Enhanced IP geolocation, ISP, VPN/Proxy/Tor, and datacenter detection. Powers `s
 ## Contributing
 
 Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, integration registration checklist, and coding conventions. Please read [DISCLAIMER.md](DISCLAIMER.md) before contributing.
+
+### Regenerating the demo GIF/MP4
+
+```bash
+export OPENOSINT_DEMO_KEY=sk-ant-...   # your Anthropic key — never committed
+openosint --web &                      # start the web server on :8080
+make demo                              # record → encode → write docs/assets/demo-web-graph.*
+git add docs/assets/demo-web-graph.*
+```
+
+See [`scripts/record-demo/README.md`](scripts/record-demo/README.md) for full prerequisites and pipeline details.
 
 ## Maintainer
 

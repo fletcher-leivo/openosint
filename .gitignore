@@ -44,6 +44,11 @@ reports/*
 # Media: generated GIFs and MP4s (tapes are versioned, output is not)
 media/output/
 
+# Demo recording pipeline — raw output and frame PNGs are never committed
+# Only the final encoded docs/assets/demo-web-graph.{gif,mp4,png} are committed
+scripts/record-demo/out/
+scripts/record-demo/node_modules/
+
 # Distribution / packaging
 .installed.cfg
 lib/
