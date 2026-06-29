@@ -662,7 +662,13 @@ The framework is free and MIT-licensed. This is an optional paid setup service o
 
 **Founding pricing** available for early teams — inquire.
 
-→ Email [openosint@yahoo.com](mailto:openosint@yahoo.com) · [LinkedIn](https://www.linkedin.com/company/openosintoss) · <!-- INTAKE_FORM_LINK -->
+### Need it set up for you?
+
+Get OpenOSINT wired into your stack in 3–5 days — done-for-you, fully async, no calls.
+
+**[Book the Setup Sprint → €350 (founding price, first 5 teams)](https://tommasodev.gumroad.com/l/osint-mcp-setup-sprint)**
+
+→ Or email [openosint@yahoo.com](mailto:openosint@yahoo.com) · [LinkedIn](https://www.linkedin.com/company/openosintoss)
 
 *For authorized use only. See [DISCLAIMER.md](DISCLAIMER.md).*
 
