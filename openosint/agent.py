@@ -475,15 +475,6 @@ class AgentResponse:
     error: str = ""
 
 
-@dataclass
-class _AgentRunContext:
-    """Mutable state threaded through one agent turn."""
-
-    messages: list[dict[str, Any]]
-    tool_calls: list[ToolCall]
-    on_tool_call: Any
-
-
 # ---------------------------------------------------------------------------
 # Shared turn helpers
 # ---------------------------------------------------------------------------
@@ -511,7 +502,9 @@ async def _execute_tool(
 
 
 async def _process_tool_turn(
-    ctx: _AgentRunContext,
+    messages: list[dict[str, Any]],
+    tool_calls: list[ToolCall],
+    on_tool_call: Any,
     response_content: list[Any],
 ) -> None:
     """Execute all tool_use blocks in one Anthropic response turn."""
@@ -519,8 +512,8 @@ async def _process_tool_turn(
     for block in response_content:
         if block.type != "tool_use":
             continue
-        result = await _execute_tool(block.name, block.input, ctx.on_tool_call)
-        ctx.tool_calls.append(ToolCall(name=block.name, input=block.input, result=result))
+        result = await _execute_tool(block.name, block.input, on_tool_call)
+        tool_calls.append(ToolCall(name=block.name, input=block.input, result=result))
         logger.info("Tool executed: %s → %d chars", block.name, len(result))
         tool_results.append(
             {
@@ -529,7 +522,7 @@ async def _process_tool_turn(
                 "content": result,
             }
         )
-    ctx.messages.append({"role": "user", "content": tool_results})
+    messages.append({"role": "user", "content": tool_results})
 
 
 def _build_ollama_assistant_message(msg: Any) -> dict[str, Any]:
@@ -550,18 +543,20 @@ def _build_ollama_assistant_message(msg: Any) -> dict[str, Any]:
 
 
 async def _process_ollama_tool_turn(
-    ctx: _AgentRunContext,
+    messages: list[dict[str, Any]],
+    tool_calls: list[ToolCall],
+    on_tool_call: Any,
     ollama_msg: Any,
 ) -> None:
     """Execute all tool calls from one Ollama response and append results to messages."""
-    ctx.messages.append(_build_ollama_assistant_message(ollama_msg))
+    messages.append(_build_ollama_assistant_message(ollama_msg))
     for ollama_tool_call in ollama_msg.tool_calls:
         tool_name = ollama_tool_call.function.name
         tool_input = dict(ollama_tool_call.function.arguments)
-        result = await _execute_tool(tool_name, tool_input, ctx.on_tool_call)
-        ctx.tool_calls.append(ToolCall(name=tool_name, input=tool_input, result=result))
+        result = await _execute_tool(tool_name, tool_input, on_tool_call)
+        tool_calls.append(ToolCall(name=tool_name, input=tool_input, result=result))
         logger.info("Ollama tool executed: %s → %d chars", tool_name, len(result))
-        ctx.messages.append({"role": "tool", "content": result})
+        messages.append({"role": "tool", "content": result})
 
 
 # ---------------------------------------------------------------------------
@@ -614,11 +609,8 @@ class OpenOSINTAgent:
             Final text response and list of tool calls made.
         """
         self.history.append({"role": "user", "content": prompt})
-        ctx = _AgentRunContext(
-            messages=list(self.history),
-            tool_calls=[],
-            on_tool_call=on_tool_call,
-        )
+        messages: list[dict[str, Any]] = list(self.history)
+        tool_calls: list[ToolCall] = []
         try:
             while True:
                 response = await self.client.messages.create(
@@ -626,15 +618,15 @@ class OpenOSINTAgent:
                     max_tokens=_MAX_TOKENS,
                     system=SYSTEM_PROMPT,
                     tools=TOOL_DEFINITIONS,  # type: ignore[arg-type]
-                    messages=ctx.messages,  # type: ignore[arg-type]
+                    messages=messages,  # type: ignore[arg-type]
                 )
                 if response.stop_reason == "end_turn":
                     text = _extract_first_text(response.content)
                     self.history.append({"role": "assistant", "content": response.content})
-                    return AgentResponse(content=text, tool_calls=ctx.tool_calls)
+                    return AgentResponse(content=text, tool_calls=tool_calls)
                 if response.stop_reason == "tool_use":
-                    ctx.messages.append({"role": "assistant", "content": response.content})
-                    await _process_tool_turn(ctx, response.content)
+                    messages.append({"role": "assistant", "content": response.content})
+                    await _process_tool_turn(messages, tool_calls, on_tool_call, response.content)
                 else:
                     break
         except anthropic.AuthenticationError:
@@ -745,22 +737,22 @@ class OllamaAgent:
             {"role": "system", "content": SYSTEM_PROMPT},
             *self.history,
         ]
-        ctx = _AgentRunContext(messages=messages, tool_calls=[], on_tool_call=on_tool_call)
+        tool_calls: list[ToolCall] = []
 
         try:
             client = ollama.AsyncClient(host=self.host)
             while True:
                 response = await client.chat(
                     model=self.model,
-                    messages=ctx.messages,
+                    messages=messages,
                     tools=_OLLAMA_TOOLS,
                 )
                 msg = response.message
                 if not msg.tool_calls:
                     text = msg.content or ""
                     self.history.append({"role": "assistant", "content": text})
-                    return AgentResponse(content=text, tool_calls=ctx.tool_calls)
-                await _process_ollama_tool_turn(ctx, msg)
+                    return AgentResponse(content=text, tool_calls=tool_calls)
+                await _process_ollama_tool_turn(messages, tool_calls, on_tool_call, msg)
         except Exception as exc:
             err_str = str(exc)
             # Surface a clear, actionable error when the Ollama server is not running
@@ -818,9 +810,14 @@ def _build_openai_assistant_message(msg: Any) -> dict[str, Any]:
     }
 
 
-async def _process_openai_tool_turn(ctx: _AgentRunContext, openai_msg: Any) -> None:
+async def _process_openai_tool_turn(
+    messages: list[dict[str, Any]],
+    tool_calls: list[ToolCall],
+    on_tool_call: Any,
+    openai_msg: Any,
+) -> None:
     """Execute all tool calls from one OpenAI response and append results to messages."""
-    ctx.messages.append(_build_openai_assistant_message(openai_msg))
+    messages.append(_build_openai_assistant_message(openai_msg))
     for openai_tool_call in openai_msg.tool_calls:
         tool_name = openai_tool_call.function.name
         raw_args = openai_tool_call.function.arguments
@@ -828,10 +825,10 @@ async def _process_openai_tool_turn(ctx: _AgentRunContext, openai_msg: Any) -> N
             tool_input = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
         except (json.JSONDecodeError, TypeError):
             tool_input = {"input": raw_args}
-        result = await _execute_tool(tool_name, tool_input, ctx.on_tool_call)
-        ctx.tool_calls.append(ToolCall(name=tool_name, input=tool_input, result=result))
+        result = await _execute_tool(tool_name, tool_input, on_tool_call)
+        tool_calls.append(ToolCall(name=tool_name, input=tool_input, result=result))
         logger.info("OpenAI tool executed: %s → %d chars", tool_name, len(result))
-        ctx.messages.append(
+        messages.append(
             {
                 "role": "tool",
                 "tool_call_id": openai_tool_call.id,
@@ -905,14 +902,14 @@ class OpenAICompatibleAgent:
             {"role": "system", "content": SYSTEM_PROMPT},
             *self.history,
         ]
-        ctx = _AgentRunContext(messages=messages, tool_calls=[], on_tool_call=on_tool_call)
+        tool_calls: list[ToolCall] = []
 
         try:
             client = openai.AsyncOpenAI(base_url=self.base_url, api_key=self.api_key)
             while True:
                 response = await client.chat.completions.create(
                     model=self.model,
-                    messages=ctx.messages,
+                    messages=messages,
                     tools=_OPENAI_TOOLS,
                     tool_choice="auto",
                     max_tokens=_MAX_TOKENS,
@@ -929,8 +926,8 @@ class OpenAICompatibleAgent:
                 if not msg.tool_calls:
                     text = msg.content or ""
                     self.history.append({"role": "assistant", "content": text})
-                    return AgentResponse(content=text, tool_calls=ctx.tool_calls)
-                await _process_openai_tool_turn(ctx, msg)
+                    return AgentResponse(content=text, tool_calls=tool_calls)
+                await _process_openai_tool_turn(messages, tool_calls, on_tool_call, msg)
         except openai.AuthenticationError:
             return AgentResponse(
                 content="",

@@ -45,14 +45,9 @@ _PROTO_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 def _normalize_value(entity_type: EntityType, value: str) -> str:
     """Return a canonical form used for deduplication."""
-    stripped = value.strip()
-    if entity_type == EntityType.EMAIL:
-        return stripped.lower()
     if entity_type == EntityType.URL:
-        return _PROTO_RE.sub("", stripped.lower()).rstrip("/")
-    if entity_type in (EntityType.DOMAIN, EntityType.IP, EntityType.ASN):
-        return stripped.lower()
-    return stripped.lower()
+        return _PROTO_RE.sub("", value.strip().lower()).rstrip("/")
+    return value.strip().lower()
 
 
 # ---------------------------------------------------------------------------

@@ -18,7 +18,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import re
 from collections import deque
 from typing import Any
 
@@ -30,6 +29,7 @@ from openosint.correlation import (
     make_entity,
 )
 from openosint.extractors import EXTRACTOR_REGISTRY
+from openosint.regexes import detect_entity_kind
 
 logger = logging.getLogger(__name__)
 
@@ -39,45 +39,23 @@ logger = logging.getLogger(__name__)
 
 _PIVOT_MIN_CONFIDENCE: float = 0.6
 
-# ---------------------------------------------------------------------------
-# Entity-type detection — order matters (most specific first)
-# ---------------------------------------------------------------------------
-
-_EMAIL_DETECT_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
-_URL_DETECT_RE = re.compile(r"^https?://", re.IGNORECASE)
-_IPV4_DETECT_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
-_IPV6_DETECT_RE = re.compile(
-    r"^(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{0,4}$"
-)
-_HASH_DETECT_RE = re.compile(r"^[0-9a-fA-F]{32}$|^[0-9a-fA-F]{40}$|^[0-9a-fA-F]{64}$")
-_PHONE_DETECT_RE = re.compile(r"^\+?\d{7,15}$")
-_DOMAIN_DETECT_RE = re.compile(
-    r"^[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z]{2,})+$"
-)
+_KIND_TO_ENTITY_TYPE: dict[str, EntityType] = {
+    "email": EntityType.EMAIL,
+    "url": EntityType.URL,
+    "ip": EntityType.IP,
+    "hash": EntityType.HASH,
+    "phone": EntityType.PHONE,
+    "domain": EntityType.DOMAIN,
+    "username": EntityType.USERNAME,
+    "person": EntityType.PERSON,
+}
 
 
 def _detect_entity_type(value: str) -> Entity:
-    """Detect the entity type of *value* and return a seed Entity.
-
-    Detection order (most-specific first):
-      EMAIL -> URL -> IPv4 -> IPv6 -> HASH -> PHONE -> DOMAIN -> USERNAME
-    """
+    """Detect the entity type of *value* and return a seed Entity."""
     v = value.strip()
-    if _EMAIL_DETECT_RE.match(v):
-        return make_entity(EntityType.EMAIL, v, 1.0)
-    if _URL_DETECT_RE.match(v):
-        return make_entity(EntityType.URL, v, 1.0)
-    if _IPV4_DETECT_RE.match(v):
-        return make_entity(EntityType.IP, v, 1.0)
-    if ":" in v and _IPV6_DETECT_RE.match(v):
-        return make_entity(EntityType.IP, v, 1.0)
-    if _HASH_DETECT_RE.match(v):
-        return make_entity(EntityType.HASH, v, 1.0)
-    if _PHONE_DETECT_RE.match(v):
-        return make_entity(EntityType.PHONE, v, 1.0)
-    if _DOMAIN_DETECT_RE.match(v):
-        return make_entity(EntityType.DOMAIN, v, 1.0)
-    return make_entity(EntityType.USERNAME, v, 1.0)
+    entity_type = _KIND_TO_ENTITY_TYPE.get(detect_entity_kind(v), EntityType.USERNAME)
+    return make_entity(entity_type, v, 1.0)
 
 
 # ---------------------------------------------------------------------------
