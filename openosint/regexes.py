@@ -1,6 +1,7 @@
 # openosint/regexes.py
 """Shared compiled regular expressions used across the package."""
 
+import ipaddress
 import re
 
 # ---------------------------------------------------------------------------
@@ -18,7 +19,6 @@ EMAIL_FIND_RE = re.compile(r"[\w.+-]+@[\w-]+\.[a-z]{2,}")
 # ---------------------------------------------------------------------------
 
 URL_DETECT_RE = re.compile(r"^https?://", re.IGNORECASE)
-IPV4_DETECT_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
 HASH_DETECT_RE = re.compile(r"^[0-9a-fA-F]{32}$|^[0-9a-fA-F]{40}$|^[0-9a-fA-F]{64}$")
 PHONE_DETECT_RE = re.compile(r"^\+?\d{7,15}$")
 DOMAIN_DETECT_RE = re.compile(
@@ -33,15 +33,18 @@ def detect_entity_kind(value: str) -> str:
     ``"phone"``, ``"domain"``, ``"username"`` (single token without spaces),
     or ``"person"`` (multi-word, assumed full name).
 
-    Detection order: email → url → ipv4 → hash → phone → domain → username/person.
+    Detection order: email → url → ip → hash → phone → domain → username/person.
     """
     v = value.strip()
     if EMAIL_RE.match(v):
         return "email"
     if URL_DETECT_RE.match(v):
         return "url"
-    if IPV4_DETECT_RE.match(v):
+    try:
+        ipaddress.ip_address(v)
         return "ip"
+    except ValueError:
+        pass
     if HASH_DETECT_RE.match(v):
         return "hash"
     if PHONE_DETECT_RE.match(v):
