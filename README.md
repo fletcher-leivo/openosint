@@ -653,14 +653,10 @@ The framework is free and MIT-licensed. This is an optional paid setup service o
 - API keys wired in (Shodan, VirusTotal, IP2Location, HaveIBeenPwned, and others as needed)
 - One investigation workflow built around your use case
 - Written step-by-step setup guide + screen-recorded walkthrough
-- 1-page runbook
-- Async email support for 7 days
 
 **Delivery:** 3–5 days, fully async.
 
 **For:** SOC analysts · threat-intel teams · fraud/AML · pentesters · OSINT investigators
-
-**Founding pricing** available for early teams — inquire.
 
 ### Need it set up for you?
 
