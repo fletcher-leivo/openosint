@@ -654,6 +654,11 @@ class UpdateCaseRequest(BaseModel):
     graph: str | None = None          # JSON object string
 
 
+class RenameCaseRequest(BaseModel):
+    """Body for PATCH /api/cases/{case_id}/name — rename case."""
+    name: str
+
+
 def _select_chat_backend(req: "ChatRequest") -> str:
     """Resolve which AI backend to use for a chat request: openai | ollama | claude."""
     has_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
@@ -1347,6 +1352,20 @@ def create_app() -> FastAPI:
                 status_code=404,
             )
         return None
+
+    # ------------------------------------------------------------------
+    # PATCH /api/cases/{case_id}/name (must be before generic {case_id} routes)
+    # ------------------------------------------------------------------
+
+    @app.patch("/api/cases/{case_id}/name")
+    async def api_rename_case(case_id: str, req: RenameCaseRequest):
+        case = _CASE_DB.rename_case(case_id, req.name)
+        if case is None:
+            return JSONResponse(
+                {"status": "error", "message": f"Case {case_id} not found"},
+                status_code=404,
+            )
+        return case
 
     # ------------------------------------------------------------------
     # POST /api/run/{tool_name}
