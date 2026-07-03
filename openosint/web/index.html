@@ -645,7 +645,7 @@
         id="chat-input"
         aria-label="Message input"
         x-model="input"
-        @keydown.enter.exact.prevent="sendMessage()"
+        @keydown.enter.ctrl.prevent="sendMessage()"
         @input="autoResize($event.target)"
         :disabled="isStreaming"
         placeholder="Investigate a target or ask a question..."
