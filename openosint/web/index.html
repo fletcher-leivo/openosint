@@ -754,7 +754,7 @@ document.addEventListener('alpine:init', () => {
     activeTab: 'chat',
     graphNodeCapHit: false,
     graphPivotNode: null,
-    currentTarget: '',
+    currentTargets: [],
 
     // Gate / notice bar state (initialized from localStorage in init())
     gatePassed: false,
@@ -1029,11 +1029,12 @@ document.addEventListener('alpine:init', () => {
           if (last?.streaming) last.streaming = false;
           parts.push({ type: 'tool', tool: evt.tool, input: evt.input || '', status: 'running', output: '', elapsed: null, collapsed: false, isDemo: false });
           this.scrollToBottom();
-          // Graph: record tool input for normalizer; add root node on first call.
+          // Graph: record tool input for normalizer; add root node for each new target.
           toolInputMap[evt.tool] = evt.input || '';
           if (window._graphFns && window._makeTargetNode && evt.input) {
-            if (!this.currentTarget) {
-              this.currentTarget = evt.input;
+            const targetStr = String(evt.input).trim();
+            if (!this.currentTargets.includes(targetStr)) {
+              this.currentTargets.push(targetStr);
               const rootNode = window._makeTargetNode(evt.input);
               window._graphFns.addToGraph({ nodes: [rootNode], edges: [] });
               this.hasGraphData = true;
@@ -1054,7 +1055,7 @@ document.addEventListener('alpine:init', () => {
           this.scrollToBottom();
           // Graph: extract entities from tool output and merge into graph.
           if (window._graphFns && window._extractEntities) {
-            const toolTarget = toolInputMap[evt.tool] || this.currentTarget;
+            const toolTarget = toolInputMap[evt.tool] || this.currentTargets[this.currentTargets.length - 1];
             if (toolTarget) {
               const { nodes, edges } = window._extractEntities(evt.tool, toolTarget, evt.output || '');
               if (nodes.length || edges.length) {
@@ -1188,12 +1189,15 @@ document.addEventListener('alpine:init', () => {
                 status: 'running', output: '', elapsed: null, collapsed: false,
               });
               this.scrollToBottom();
-              // Graph: record input; add root node on first tool call.
+              // Graph: record input; add root node for each new target.
               sseToolInputMap[evt.tool] = evt.input || '';
-              if (window._graphFns && window._makeTargetNode && evt.input && !this.currentTarget) {
-                this.currentTarget = evt.input;
-                window._graphFns.addToGraph({ nodes: [window._makeTargetNode(evt.input)], edges: [] });
-                this.hasGraphData = true;
+              if (window._graphFns && window._makeTargetNode && evt.input) {
+                const targetStr = String(evt.input).trim();
+                if (!this.currentTargets.includes(targetStr)) {
+                  this.currentTargets.push(targetStr);
+                  window._graphFns.addToGraph({ nodes: [window._makeTargetNode(evt.input)], edges: [] });
+                  this.hasGraphData = true;
+                }
               }
 
             } else if (evt.type === 'tool_result') {
@@ -1209,7 +1213,7 @@ document.addEventListener('alpine:init', () => {
               this.scrollToBottom();
               // Graph: extract and merge entities.
               if (window._graphFns && window._extractEntities) {
-                const toolTarget = sseToolInputMap[evt.tool] || this.currentTarget;
+                const toolTarget = sseToolInputMap[evt.tool] || this.currentTargets[this.currentTargets.length - 1];
                 if (toolTarget) {
                   const { nodes, edges } = window._extractEntities(evt.tool, toolTarget, evt.output || '');
                   if (nodes.length || edges.length) {
@@ -1260,7 +1264,7 @@ document.addEventListener('alpine:init', () => {
     clearConversation() {
       this.messages = []; this.chatHistory = [];
       this.hasGraphData = false; this.graphNodeCapHit = false;
-      this.graphPivotNode = null; this.currentTarget = '';
+      this.graphPivotNode = null; this.currentTargets = [];
       if (window._graphFns) window._graphFns.clearGraph();
     },
 
