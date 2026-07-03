@@ -548,7 +548,7 @@
         </div>
       </div>
     </template>
-    <template x-if="!caseLoading && filteredCases.length === 0">
+    <template x-if="caseLoaded && filteredCases.length === 0">
       <div class="px-3 py-4 text-center text-xs text-muted">No cases yet</div>
     </template>
   </div>
@@ -621,7 +621,7 @@
 
           <!-- assistant block -->
           <div x-show="msg.role === 'assistant'" class="mb-6">
-            <div x-show="msg.parts.length === 0"
+            <div x-show="msg.parts?.length === 0"
                  class="flex items-center gap-1.5 text-muted text-xs font-mono">
               <span class="inline-block c-blink">_</span>thinking
             </div>
@@ -1060,11 +1060,13 @@ document.addEventListener('alpine:init', () => {
     },
 
     graphVisible: false,
-    showCaseDrawer: false,
-    caseList: [],
     caseLoading: false,
+    caseLoaded: false,
+    caseList: [],
+    caseFilter: '',
     caseSearch: '',
     activeCaseId: null,
+    showCaseDrawer: false,
     renamingCaseId: null,
     renameValue: '',
 
@@ -1427,9 +1429,11 @@ document.addEventListener('alpine:init', () => {
         if (resp.ok) {
           const data = await resp.json();
           this.caseList = data.cases || [];
+          this.caseLoaded = true;
         }
       } catch (e) {
         console.error('Failed to load cases:', e);
+        this.caseLoaded = true;
       }
     },
 
@@ -1475,10 +1479,21 @@ document.addEventListener('alpine:init', () => {
             this.hasGraphData = true;
             this.graphVisible = true;
             this.activeTab = 'graph';
+            // Graph container was hidden — must wait for CSS transition to
+            // complete, then resize Cytoscape, THEN import data.  Two requestAnimationFrame
+            // cycles: first yields to the browser reflow (panel becomes visible),
+            // second yields after resizeGraph() so layout has settled.
             this.$nextTick(() => {
-              if (window._graphFns && window._graphFns.importJson) {
-                window._graphFns.importJson(graph);
-              }
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  if (window._graphFns) {
+                    window._graphFns.resizeGraph();
+                    if (window._graphFns.importJson) {
+                      window._graphFns.importJson(graph);
+                    }
+                  }
+                });
+              });
             });
           } else {
             this.hasGraphData = false;
