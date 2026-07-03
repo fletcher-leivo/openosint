@@ -241,7 +241,7 @@ class TestListCases:
         assert len(cases) == 3
 
     def test_summaries_contain_expected_keys(self, db: CaseDB):
-        """list_case summaries have id, name, created_at, updated_at."""
+        """list_case summaries have id, name, created_at, updated_at, current_targets, message_count."""
         case = db.create_case("Summary Test")
         cases = db.list_cases()
         summary = cases[0]
@@ -249,6 +249,31 @@ class TestListCases:
         assert "name" in summary
         assert "created_at" in summary
         assert "updated_at" in summary
+        assert "current_targets" in summary
+        assert "message_count" in summary
+
+    def test_message_count_is_computed(self, db: CaseDB):
+        """list_case summaries have a correct message_count from json_array_length."""
+        case = db.create_case("Count Test")
+        # Fresh case has 0 messages
+        summary = db.list_cases()[0]
+        assert summary["message_count"] == 0
+        # Update with messages
+        msgs = json.dumps([
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "world"},
+        ])
+        db.update_case(case["id"], messages=msgs)
+        summary = db.list_cases()[0]
+        assert summary["message_count"] == 2
+
+    def test_current_targets_in_summary(self, db: CaseDB):
+        """list_case summaries include current_targets field."""
+        case = db.create_case("Targets Summary Test")
+        targets = json.dumps(["8.8.8.8", "example.com"])
+        db.update_case(case["id"], current_targets=targets)
+        summary = db.list_cases()[0]
+        assert summary["current_targets"] == targets
 
     def test_summaries_do_not_contain_full_data(self, db: CaseDB):
         """list_case summaries do NOT include messages, chat_history, graph blobs."""

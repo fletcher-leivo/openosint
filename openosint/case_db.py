@@ -109,11 +109,14 @@ class CaseDB:
         """Return case summaries sorted by updated_at DESC (newest first).
 
         Summaries exclude the large JSON blobs (messages, chat_history, graph)
-        to keep list responses lightweight.
+        to keep list responses lightweight, but include current_targets and
+        a computed message_count for UI preview purposes.
         """
         conn = self._connect()
         rows = conn.execute(
-            """SELECT id, name, created_at, updated_at
+            """SELECT id, name, created_at, updated_at,
+                      current_targets,
+                      json_array_length(messages) AS message_count
                FROM cases
                ORDER BY updated_at DESC
                LIMIT ?""",
