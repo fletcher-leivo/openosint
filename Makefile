@@ -40,7 +40,7 @@ deploy:
 		--exclude='__pycache__' \
 		--exclude='*.pyc' \
 		--exclude='.env' \
-		--exclude='openosint.db' \
+		--exclude='*.db' \
 		./ /srv/openosint/
 	@echo "[deploy] restarting openosint-web.service"
 	systemctl --user restart openosint-web.service

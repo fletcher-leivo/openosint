@@ -12,6 +12,7 @@
  *   resizeGraph()                       — call when container becomes visible
  *   exportPng()                         — returns base64 data URI or null
  *   exportJson()                        — returns { nodes, edges }
+ *   importJson({ nodes, edges })        — clear & restore from exportJson output
  *
  * Pivot:  set window._graphPivotCallback = (nodeId, nodeData) => {}
  *         before or after initGraph — it is checked at tap time.
@@ -293,4 +294,72 @@ export function exportJson() {
       label:  e.data('label'),
     })),
   };
+}
+
+/**
+ * Restore a graph from a serialized { nodes, edges } object (e.g. from exportJson()).
+ * Clears the existing graph first, then batch-adds all elements via addToGraph().
+ * Resets internal counters so the cap is recalculated from the imported data.
+ */
+export function importJson({ nodes = [], edges = [] }) {
+  if (!_cy) return;
+
+  // Clear existing graph and reset counters
+  clearGraph();
+
+  if (nodes.length === 0 && edges.length === 0) return;
+
+  // Determine valid node IDs up front so we can filter edges
+  const validNodeIds = new Set(
+    nodes.filter(n => n?.id).map(n => n.id)
+  );
+
+  // Reset cap tracking — imported graphs should restore fully
+  _nodeCount = Math.min(nodes.length, MAX_NODES);
+  _capFired  = nodes.length > MAX_NODES;
+  if (_capFired) {
+    document.dispatchEvent(new CustomEvent('graph-node-cap', { detail: { max: MAX_NODES } }));
+  }
+
+  // Batch-add nodes directly to Cytoscape (graph is empty after clearGraph)
+  if (nodes.length > 0) {
+    // Bypass addToGraph's per-node loop by inserting directly into Cytoscape
+    const cyNodes = nodes
+      .filter(n => n?.id)
+      .slice(0, MAX_NODES)
+      .map(n => ({
+        group: 'nodes',
+        data: {
+          id:     n.id,
+          label:  String(n.label || n.id).slice(0, 48),
+          type:   n.type   || 'unknown',
+          color:  _colorFor(n.type),
+          isRoot: !!(n.data?.isRoot),
+          ...n.data,
+        },
+      }));
+    _cy.add(cyNodes);
+  }
+
+  // Batch-add edges — skip if either endpoint is absent
+  const cyEdges = edges
+    .filter(e => {
+      if (!e?.source || !e?.target) return false;
+      if (!validNodeIds.has(e.source)) return false;
+      if (!validNodeIds.has(e.target)) return false;
+      return true;
+    })
+    .map(e => ({
+      group: 'edges',
+      data: {
+        id:     `edge:${e.source}|${e.target}|${e.label || ''}`,
+        source: e.source,
+        target: e.target,
+        label:  e.label || '',
+      },
+    }));
+  if (cyEdges.length) _cy.add(cyEdges);
+
+  // Re-layout
+  if (nodes.length > 0 || edges.length > 0) _scheduleLayout();
 }
