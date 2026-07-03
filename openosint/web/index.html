@@ -436,19 +436,96 @@
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
     </button>
-    <button @click="clearConversation()"
-            aria-label="Clear conversation"
-            title="Clear conversation"
-            :disabled="messages.length === 0"
-            class="w-8 h-8 flex items-center justify-center rounded-md text-muted hover:text-primary hover:bg-surface disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
+    <!-- History / case drawer toggle -->
+    <button @click="showCaseDrawer = !showCaseDrawer"
+            aria-label="Case history"
+            title="Case history"
+            :class="showCaseDrawer ? 'bg-surface text-primary' : 'text-muted hover:text-primary'"
+            class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-surface transition-colors">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <polyline points="3 6 5 6 21 6"/>
-        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-        <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </button>
+    <!-- New case button -->
+    <button @click="newCase()"
+            aria-label="New case"
+            title="New case"
+            class="w-8 h-8 flex items-center justify-center rounded-md text-muted hover:text-primary hover:bg-surface transition-colors">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="13" x2="12" y2="17"/>
+        <line x1="10" y1="15" x2="14" y2="15"/>
       </svg>
     </button>
   </div>
 </header>
+
+<!-- Case history drawer -->
+<div x-show="showCaseDrawer"
+     x-cloak
+     @click.away="showCaseDrawer = false"
+     class="absolute right-2 top-14 z-50 w-80 bg-bg border border-app rounded-lg shadow-lg overflow-hidden">
+  <!-- Drawer header -->
+  <div class="flex items-center justify-between px-3 py-2 border-b border-app">
+    <span class="text-xs font-medium text-primary">Cases</span>
+    <button @click="newCase()" title="New case" class="text-muted hover:text-primary transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+  </div>
+  <!-- Search -->
+  <div class="px-2 py-1">
+    <input type="text" x-model="caseSearch" placeholder="Search cases..."
+           class="w-full px-2 py-1 text-xs bg-surface border border-app rounded text-primary placeholder:text-muted focus:outline-none focus:border-accent">
+  </div>
+  <!-- Case list -->
+  <div class="max-h-64 overflow-y-auto">
+    <template x-if="caseLoading">
+      <div class="px-3 py-4 text-center text-xs text-muted">Loading...</div>
+    </template>
+    <template x-for="c in filteredCases" :key="c.id">
+      <div @click="loadCase(c.id)"
+           :class="activeCaseId === c.id ? 'bg-surface border-l-2 border-accent' : 'border-l-2 border-transparent'"
+           class="px-3 py-2 cursor-pointer hover:bg-surface transition-colors border-l-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-primary truncate flex-1" x-text="c.name"></span>
+          <!-- Inline rename -->
+          <template x-if="renamingCaseId === c.id">
+            <input type="text" x-model="renameValue"
+                   @keydown.enter.prevent="renameCase(c.id, renameValue); renamingCaseId = null"
+                   @keydown.escape.prevent="renamingCaseId = null"
+                   @blur="renamingCaseId = null"
+                   class="w-24 px-1 py-0 text-xs bg-surface border border-accent rounded text-primary focus:outline-none"
+                   ref="renameInput">
+          </template>
+          <template x-if="renamingCaseId !== c.id">
+            <div class="flex items-center gap-1">
+              <button @click.prevent="renamingCaseId = c.id; renameValue = c.name; $nextTick(() => $refs.renameInput?.focus())"
+                      title="Rename" class="text-muted hover:text-primary transition-colors p-0">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                </svg>
+              </button>
+              <button @click.prevent="deleteCase(c.id)"
+                      title="Delete" class="text-muted hover:text-error transition-colors p-0">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+              </button>
+            </div>
+          </template>
+        </div>
+        <div class="text-[10px] text-muted mt-0.5" x-text="new Date(c.updated_at).toLocaleString()"></div>
+      </div>
+    </template>
+    <template x-if="!caseLoading && filteredCases.length === 0">
+      <div class="px-3 py-4 text-center text-xs text-muted">No cases yet</div>
+    </template>
+  </div>
+</div>
 
 <!-- Mobile tab bar — only visible when graph has data -->
 <div x-show="hasGraphData" x-cloak class="flex-none flex md:hidden border-b border-app bg-surface text-xs">
@@ -836,6 +913,15 @@ document.addEventListener('alpine:init', () => {
         this.fetchHealth();
         this.fetchSponsors();
         document.getElementById('chat-input')?.focus();
+        // Load case list + auto-restore most recent case
+        this.loadCaseList().then(() => {
+          const lastCaseId = localStorage.getItem('openosint-active-case');
+          if (lastCaseId) {
+            this.loadCase(lastCaseId).catch(() => {
+              localStorage.removeItem('openosint-active-case');
+            });
+          }
+        });
       });
     },
 
@@ -939,6 +1025,21 @@ document.addEventListener('alpine:init', () => {
       this.sendMessage();
     },
 
+    graphVisible: false,
+    showCaseDrawer: false,
+    caseList: [],
+    caseLoading: false,
+    caseSearch: '',
+    activeCaseId: null,
+    renamingCaseId: null,
+    renameValue: '',
+
+    filteredCases() {
+        if (!this.caseSearch) return this.caseList;
+        const q = this.caseSearch.toLowerCase();
+        return this.caseList.filter(c => c.name.toLowerCase().includes(q));
+    },
+
     async sendMessage() {
       const text = this.input.trim();
       if (!text || this.isStreaming) return;
@@ -973,17 +1074,26 @@ document.addEventListener('alpine:init', () => {
         }
       }
 
+      // Push user message BEFORE auto-create so autoCreateCase can extract the name
+      this.messages.push({ role: 'user', content: text, time: new Date().toLocaleTimeString() });
+      this.chatHistory.push({ role: 'user', content: text });
+
+      // Auto-create case if this is the first message and no active case
+      if (!this.activeCaseId) {
+        await this.autoCreateCase();
+      }
+
       this.input = '';
       this.$nextTick(() => {
         const ta = document.getElementById('chat-input');
-        if (ta) { ta.style.height = 'auto'; ta.style.height = '22px'; }
+        if (ta) ta.focus();
       });
 
-      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      this.messages.push({ role: 'user', content: text, time: now });
-      this.chatHistory.push({ role: 'user', content: text });
-
-      this.messages.push({ role: 'assistant', parts: [] });
+      // Create assistant placeholder
+      this.messages.push({
+        role: 'assistant',
+        parts: [],
+      });
       const msgIdx = this.messages.length - 1;
       this.isStreaming = true;
       this.scrollToBottom();
@@ -996,6 +1106,11 @@ document.addEventListener('alpine:init', () => {
 
       this.isStreaming = false;
       this.scrollToBottom();
+
+      // Auto-save case after message completes
+      if (this.activeCaseId) {
+        await this.saveCurrentCase();
+      }
     },
 
     // Client-side BYOK loop via agent-loop.js
@@ -1266,6 +1381,156 @@ document.addEventListener('alpine:init', () => {
       this.hasGraphData = false; this.graphNodeCapHit = false;
       this.graphPivotNode = null; this.currentTargets = [];
       if (window._graphFns) window._graphFns.clearGraph();
+    },
+
+    // ------------------------------------------------------------------
+    // Case management
+    // ------------------------------------------------------------------
+
+    async loadCaseList() {
+      try {
+        const resp = await fetch('/api/cases');
+        if (resp.ok) {
+          const data = await resp.json();
+          this.caseList = data.cases || [];
+        }
+      } catch (e) {
+        console.error('Failed to load cases:', e);
+      }
+    },
+
+    async createNewCase(name) {
+      if (!name) name = `Investigation ${new Date().toLocaleDateString()}`;
+      try {
+        const resp = await fetch('/api/cases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        if (resp.ok) {
+          const case_ = await resp.json();
+          this.activeCaseId = case_.id;
+          localStorage.setItem('openosint-active-case', case_.id);
+          await this.loadCaseList();
+          return case_;
+        }
+      } catch (e) {
+        console.error('Failed to create case:', e);
+      }
+    },
+
+    async loadCase(caseId) {
+      try {
+        const resp = await fetch(`/api/cases/${caseId}`);
+        if (resp.ok) {
+          const case_ = await resp.json();
+          this.activeCaseId = caseId;
+          localStorage.setItem('openosint-active-case', caseId);
+          // Restore messages
+          const msgs = JSON.parse(case_.messages || '[]');
+          this.messages = msgs;
+          // Restore chat history
+          const history = JSON.parse(case_.chat_history || '[]');
+          this.chatHistory = history;
+          // Restore targets
+          const targets = JSON.parse(case_.current_targets || '[]');
+          this.currentTargets = targets;
+          // Restore graph
+          const graph = JSON.parse(case_.graph || '{}');
+          if (graph.nodes && graph.nodes.length > 0) {
+            this.hasGraphData = true;
+            this.graphVisible = true;
+            this.activeTab = 'graph';
+            this.$nextTick(() => {
+              if (window._graphFns && window._graphFns.importJson) {
+                window._graphFns.importJson(graph);
+              }
+            });
+          } else {
+            this.hasGraphData = false;
+            if (window._graphFns) window._graphFns.clearGraph();
+          }
+          this.showCaseDrawer = false;
+          return case_;
+        }
+      } catch (e) {
+        console.error('Failed to load case:', e);
+      }
+    },
+
+    async saveCurrentCase() {
+      if (!this.activeCaseId) return;
+      // Auto-name from first user message if generic name
+      let name = null;
+      const firstUser = this.messages.find(m => m.role === 'user');
+      const genericName = this.caseList.find(c => c.id === this.activeCaseId)?.name;
+      if (firstUser && (genericName?.startsWith('Investigation ') || !genericName)) {
+        name = firstUser.content.substring(0, 80);
+      }
+      try {
+        const body = {
+          messages: JSON.stringify(this.messages),
+          chat_history: JSON.stringify(this.chatHistory),
+          current_targets: JSON.stringify(this.currentTargets),
+          graph: JSON.stringify(window._graphFns ? window._graphFns.exportJson() : {}),
+        };
+        if (name) body.name = name;
+        await fetch(`/api/cases/${this.activeCaseId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        await this.loadCaseList();
+      } catch (e) {
+        console.error('Failed to save case:', e);
+      }
+    },
+
+    async deleteCase(caseId) {
+      try {
+        const resp = await fetch(`/api/cases/${caseId}`, { method: 'DELETE' });
+        if (resp.ok || resp.status === 204) {
+          if (this.activeCaseId === caseId) {
+            this.activeCaseId = null;
+            this.clearConversation();
+          }
+          await this.loadCaseList();
+        }
+      } catch (e) {
+        console.error('Failed to delete case:', e);
+      }
+    },
+
+    async renameCase(caseId, name) {
+      if (!name) return;
+      try {
+        await fetch(`/api/cases/${caseId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        await this.loadCaseList();
+      } catch (e) {
+        console.error('Failed to rename case:', e);
+      }
+    },
+
+    async newCase() {
+      // Save current case first if exists
+      if (this.activeCaseId) {
+        await this.saveCurrentCase();
+      }
+      this.clearConversation();
+      const case_ = await this.createNewCase();
+      return case_;
+    },
+
+    async autoCreateCase() {
+      if (!this.activeCaseId) {
+        const firstUser = this.messages.find(m => m.role === 'user');
+        const name = firstUser ? firstUser.content.substring(0, 80) : 'New Investigation';
+        await this.createNewCase(name);
+      }
     },
 
     scrollToBottom() {

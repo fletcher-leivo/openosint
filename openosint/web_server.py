@@ -63,6 +63,7 @@ from openosint.tools.search_shodan import run_shodan_osint
 from openosint.tools.search_username import run_username_osint
 from openosint.tools.search_virustotal import run_virustotal_osint
 from openosint.tools.search_whois import run_whois_osint
+from openosint.case_db import CaseDB
 from openosint import __version__ as _VERSION
 from openosint.regexes import EMAIL_FIND_RE
 _ROOT = Path(__file__).parent.parent
@@ -637,6 +638,20 @@ class OpenAITestRequest(BaseModel):
 
     openai_base_url: str = ""
     openai_api_key: str = ""
+
+
+class CreateCaseRequest(BaseModel):
+    """Body for POST /api/cases — create a new investigation case."""
+    name: str
+
+
+class UpdateCaseRequest(BaseModel):
+    """Body for PUT /api/cases/{case_id} — partial update."""
+    name: str | None = None
+    messages: str | None = None       # JSON array string
+    chat_history: str | None = None   # JSON array string
+    current_targets: str | None = None  # JSON array string
+    graph: str | None = None          # JSON object string
 
 
 def _select_chat_backend(req: "ChatRequest") -> str:
@@ -1256,6 +1271,82 @@ def create_app() -> FastAPI:
         except SponsorsValidationError as exc:
             return JSONResponse({"status": "error", "message": str(exc)}, status_code=500)
         return {"status": "ok", "sponsors": sponsors}
+
+    # ------------------------------------------------------------------
+    # Case history — CaseDB singleton
+    # ------------------------------------------------------------------
+    _CASE_DB_PATH = str(_ROOT / "data" / "cases.db")
+    Path(_CASE_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+    _CASE_DB = CaseDB(_CASE_DB_PATH)
+    _CASE_DB.init_schema()
+
+    # ------------------------------------------------------------------
+    # GET /api/cases
+    # ------------------------------------------------------------------
+
+    @app.get("/api/cases")
+    async def api_list_cases():
+        return {"cases": _CASE_DB.list_cases()}
+
+    # ------------------------------------------------------------------
+    # POST /api/cases
+    # ------------------------------------------------------------------
+
+    @app.post("/api/cases", status_code=201)
+    async def api_create_case(req: CreateCaseRequest):
+        case = _CASE_DB.create_case(req.name)
+        return case
+
+    # ------------------------------------------------------------------
+    # GET /api/cases/{case_id}
+    # ------------------------------------------------------------------
+
+    @app.get("/api/cases/{case_id}")
+    async def api_get_case(case_id: str):
+        case = _CASE_DB.get_case(case_id)
+        if case is None:
+            return JSONResponse(
+                {"status": "error", "message": f"Case {case_id} not found"},
+                status_code=404,
+            )
+        return case
+
+    # ------------------------------------------------------------------
+    # PUT /api/cases/{case_id}
+    # ------------------------------------------------------------------
+
+    @app.put("/api/cases/{case_id}")
+    async def api_update_case(case_id: str, req: UpdateCaseRequest):
+        updates = {k: v for k, v in req.model_dump().items() if v is not None}
+        if not updates:
+            case = _CASE_DB.get_case(case_id)
+            if case is None:
+                return JSONResponse(
+                    {"status": "error", "message": f"Case {case_id} not found"},
+                    status_code=404,
+                )
+            return case
+        case = _CASE_DB.update_case(case_id, **updates)
+        if case is None:
+            return JSONResponse(
+                {"status": "error", "message": f"Case {case_id} not found"},
+                status_code=404,
+            )
+        return case
+
+    # ------------------------------------------------------------------
+    # DELETE /api/cases/{case_id}
+    # ------------------------------------------------------------------
+
+    @app.delete("/api/cases/{case_id}", status_code=204)
+    async def api_delete_case(case_id: str):
+        deleted = _CASE_DB.delete_case(case_id)
+        if not deleted:
+            return JSONResponse(
+                {"status": "error", "message": f"Case {case_id} not found"},
+                status_code=404,
+            )
+        return None
 
     # ------------------------------------------------------------------
     # POST /api/run/{tool_name}
