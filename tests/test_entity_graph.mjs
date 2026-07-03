@@ -463,7 +463,93 @@ console.log('\nmulti-target: duplicate target does not double-add root');
 }
 
 // ---------------------------------------------------------------------------
-// Summary
+// Round-trip: exportJson output format is compatible with importJson input
+// Simulates export → JSON stringify/parse → import without Cytoscape.
 // ---------------------------------------------------------------------------
+console.log('\nround-trip: export format matches import expectations');
+{
+  // Build a graph using makeTargetNode + extractEntities
+  const root = makeTargetNode('8.8.8.8');
+  const ipOut = `IP intelligence for '8.8.8.8':\n\n[+] Org: AS15169 Google LLC\n[+] Hostname: dns.google`;
+  const extracted = extractEntities('search_ip', '8.8.8.8', ipOut);
+
+  // Merge all into a simulated graph (id -> node map, like addToGraph dedupe)
+  const allNodes = [root, ...extracted.nodes];
+  const allEdges = extracted.edges;
+
+  // Simulate exportJson output format: { nodes: [{id, type, label, data}], edges: [{source, target, label}] }
+  const exported = {
+    nodes: allNodes.map(n => ({
+      id:    n.id,
+      type:  n.type,
+      label: n.label,
+      data:  n.data,
+    })),
+    edges: allEdges.map(e => ({
+      source: e.source,
+      target: e.target,
+      label:  e.label || '',
+    })),
+  };
+
+  // Simulate JSON round-trip (stringify → parse)
+  const serialized = JSON.stringify(exported);
+  const imported = JSON.parse(serialized);
+
+  // Verify imported structure matches importJson expectations
+  assert(Array.isArray(imported.nodes), 'imported.nodes is array');
+  assert(Array.isArray(imported.edges), 'imported.edges is array');
+  assert(imported.nodes.length === allNodes.length, `node count preserved (${allNodes.length})`);
+  assert(imported.edges.length === allEdges.length, `edge count preserved (${allEdges.length})`);
+
+  // Each node has required fields
+  assert(imported.nodes.every(n => typeof n.id === 'string' && n.id.length > 0), 'all nodes have id');
+  assert(imported.nodes.every(n => typeof n.type === 'string'), 'all nodes have type');
+  assert(imported.nodes.every(n => n.data !== undefined), 'all nodes have data');
+
+  // Root node isRoot flag survives round-trip
+  const importedRoot = imported.nodes.find(n => n.id === root.id);
+  assert(importedRoot?.data?.isRoot === true, 'root node isRoot=true survives round-trip');
+
+  // Edge references are valid (source/target point to existing node ids)
+  const importedNodeIds = new Set(imported.nodes.map(n => n.id));
+  assert(imported.edges.every(e => importedNodeIds.has(e.source)), 'all edge sources reference valid nodes');
+  assert(imported.edges.every(e => importedNodeIds.has(e.target)), 'all edge targets reference valid nodes');
+}
+
+// ---------------------------------------------------------------------------
+// Round-trip: multi-target graph survives export/import
+// ---------------------------------------------------------------------------
+console.log('\nround-trip: multi-target graph survives export/import');
+{
+  const root1 = makeTargetNode('8.8.8.8');
+  const root2 = makeTargetNode('example.com');
+
+  const ipOut = `IP intelligence for '8.8.8.8':\n\n[+] Org: AS15169 Google LLC`;
+  const dnsOut = `[DNS] Domain: example.com\n[DNS] A: 93.184.216.34`;
+  const r1 = extractEntities('search_ip', '8.8.8.8', ipOut);
+  const r2 = extractEntities('search_dns', 'example.com', dnsOut);
+
+  // Merge (simulated addToGraph)
+  const graphNodes = new Map();
+  const graphEdges = [];
+  for (const n of [root1, root2, ...r1.nodes, ...r2.nodes]) graphNodes.set(n.id, n);
+  for (const e of [...r1.edges, ...r2.edges]) graphEdges.push(e);
+
+  // Simulate export → import
+  const exported = {
+    nodes: Array.from(graphNodes.values()).map(n => ({
+      id: n.id, type: n.type, label: n.label, data: n.data,
+    })),
+    edges: graphEdges.map(e => ({ source: e.source, target: e.target, label: e.label || '' })),
+  };
+  const imported = JSON.parse(JSON.stringify(exported));
+
+  // Verify both roots survive
+  assert(imported.nodes.some(n => n.id === 'ip:8.8.8.8' && n.data.isRoot), 'root ip:8.8.8.8 survives');
+  assert(imported.nodes.some(n => n.id === 'domain:example.com' && n.data.isRoot), 'root domain:example.com survives');
+  assert(imported.nodes.length === graphNodes.size, `all ${graphNodes.size} nodes preserved`);
+  assert(imported.edges.length === graphEdges.length, `all ${graphEdges.length} edges preserved`);
+}
 console.log(`\n${passed + failed} assertions — ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
