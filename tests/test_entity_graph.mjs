@@ -369,6 +369,100 @@ console.log('\ncross-tool dedupe');
 }
 
 // ---------------------------------------------------------------------------
+// Multi-target graph — distinct root nodes for different targets
+// ---------------------------------------------------------------------------
+console.log('\nmulti-target: distinct root nodes');
+{
+  const t1 = makeTargetNode('8.8.8.8');
+  const t2 = makeTargetNode('example.com');
+  const t3 = makeTargetNode('test@example.com');
+  assert(t1.id !== t2.id, 'ip root and domain root have distinct ids');
+  assert(t1.id !== t3.id, 'ip root and email root have distinct ids');
+  assert(t2.id !== t3.id, 'domain root and email root have distinct ids');
+  assert(t1.data.isRoot && t2.data.isRoot && t3.data.isRoot, 'all roots have isRoot=true');
+}
+
+// ---------------------------------------------------------------------------
+// Multi-target graph — extractEntities edges go to correct root
+// ---------------------------------------------------------------------------
+console.log('\nmulti-target: edges to correct root');
+{
+  const ipOut = `IP intelligence for '8.8.8.8':\n\n[+] Org: AS15169 Google LLC\n[+] Hostname: dns.google`;
+  const dnsOut = `[DNS] Domain: example.com\n[DNS] A: 93.184.216.34\n[DNS] NS: a.iana-servers.net, b.iana-servers.net`;
+
+  const r1 = extractEntities('search_ip', '8.8.8.8', ipOut);
+  const r2 = extractEntities('search_dns', 'example.com', dnsOut);
+
+  const ipRootId = makeTargetNode('8.8.8.8').id;
+  const dnsRootId = makeTargetNode('example.com').id;
+
+  // search_ip edges should all source from ip:8.8.8.8
+  assert(r1.edges.every(e => e.source === ipRootId), 'search_ip edges source from ip root');
+  // search_dns edges should all source from domain:example.com
+  assert(r2.edges.every(e => e.source === dnsRootId), 'search_dns edges source from domain root');
+  // No cross-contamination
+  assert(!r1.edges.some(e => e.source === dnsRootId), 'no dns root in ip edges');
+  assert(!r2.edges.some(e => e.source === ipRootId), 'no ip root in dns edges');
+}
+
+// ---------------------------------------------------------------------------
+// Multi-target graph — simulated addToGraph keeps all root nodes visible
+// Mirrors graph-renderer.js dedupe-by-id logic without needing Cytoscape.
+// ---------------------------------------------------------------------------
+console.log('\nmulti-target: all root nodes visible after merge');
+{
+  // Simulate the renderer's node Set (id → node) used for dedupe.
+  const graphNodes = new Map();
+  function simulatedAddToGraph({ nodes, edges }) {
+    for (const n of nodes) graphNodes.set(n.id, n);
+  }
+
+  // Three different targets investigated in one conversation
+  simulatedAddToGraph({ nodes: [makeTargetNode('8.8.8.8')], edges: [] });
+  simulatedAddToGraph({ nodes: [makeTargetNode('1.1.1.1')], edges: [] });
+  simulatedAddToGraph({ nodes: [makeTargetNode('example.com')], edges: [] });
+
+  // Extract and merge entities for each
+  const ipOut = `IP intelligence for '8.8.8.8':\n\n[+] Org: AS15169 Google LLC`;
+  const ip2Out = `IP intelligence for '1.1.1.1':\n\n[+] Org: AS13335 Cloudflare`;
+  const dnsOut = `[DNS] Domain: example.com\n[DNS] A: 93.184.216.34`;
+
+  simulatedAddToGraph(extractEntities('search_ip', '8.8.8.8', ipOut));
+  simulatedAddToGraph(extractEntities('search_ip', '1.1.1.1', ip2Out));
+  simulatedAddToGraph(extractEntities('search_dns', 'example.com', dnsOut));
+
+  // All three root nodes must be present
+  assert(graphNodes.has('ip:8.8.8.8'), 'root ip:8.8.8.8 visible');
+  assert(graphNodes.has('ip:1.1.1.1'), 'root ip:1.1.1.1 visible');
+  assert(graphNodes.has('domain:example.com'), 'root domain:example.com visible');
+
+  // Entity nodes also present
+  assert(graphNodes.has('org:as15169 google llc'), 'Google org node visible');
+  assert(graphNodes.has('org:as13335 cloudflare'), 'Cloudflare org node visible');
+  assert(graphNodes.has('ip:93.184.216.34'), 'DNS A-record IP node visible');
+
+  // Total distinct nodes: 3 roots + 2 orgs + 1 IP = 6
+  assert(graphNodes.size === 6, `6 distinct nodes in graph (got ${graphNodes.size})`);
+}
+
+// ---------------------------------------------------------------------------
+// Multi-target graph — same target twice does not create duplicate root
+// ---------------------------------------------------------------------------
+console.log('\nmulti-target: duplicate target does not double-add root');
+{
+  const graphNodes = new Map();
+  function simulatedAddToGraph({ nodes, edges }) {
+    for (const n of nodes) graphNodes.set(n.id, n);
+  }
+
+  simulatedAddToGraph({ nodes: [makeTargetNode('8.8.8.8')], edges: [] });
+  simulatedAddToGraph({ nodes: [makeTargetNode('8.8.8.8')], edges: [] });
+
+  assert(graphNodes.size === 1, 'only 1 root node after duplicate add');
+  assert(graphNodes.get('ip:8.8.8.8').data.isRoot === true, 'root node preserved');
+}
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} assertions — ${passed} passed, ${failed} failed`);

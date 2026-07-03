@@ -57,8 +57,10 @@ build:
 	/srv/openosint/venv/bin/pip install -e /srv/openosint/
 	@echo "[build] done"
 
-# Test: smoke-test the running web service health endpoint.
+# Test: run entity-graph unit tests + smoke-test the running web service.
 test:
+	@echo "[test] running entity-graph unit tests"
+	@node tests/test_entity_graph.mjs
 	@echo "[test] checking /api/health"
 	@curl -fsS http://localhost:8090/api/health && echo "" || (echo "ERROR: health check failed"; exit 1)
 	@echo "[test] ok"

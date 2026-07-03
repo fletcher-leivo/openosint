@@ -50,7 +50,8 @@ def _format_host(data: dict, ip: str) -> str:
     ports = [str(s.get("port")) for s in data.get("data", []) if s.get("port")]
     if ports:
         lines.append(f"[+] Open ports: {', '.join(ports[:20])}")
-    vulns = list(data.get("vulns", {}).keys())
+    vulns_raw = data.get("vulns", {})
+    vulns = list(vulns_raw) if isinstance(vulns_raw, list) else list(vulns_raw.keys())
     if vulns:
         lines.append(f"[+] Vulnerabilities: {', '.join(vulns[:10])}")
     if len(lines) == 1:
