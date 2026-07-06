@@ -1479,22 +1479,30 @@ document.addEventListener('alpine:init', () => {
             this.hasGraphData = true;
             this.graphVisible = true;
             this.activeTab = 'graph';
-            // Graph container was hidden — must wait for CSS transition to
-            // complete, then resize Cytoscape, THEN import data.  Two requestAnimationFrame
-            // cycles: first yields to the browser reflow (panel becomes visible),
-            // second yields after resizeGraph() so layout has settled.
-            this.$nextTick(() => {
-              requestAnimationFrame(() => {
+            // Deferred import — waits for ES modules to load and Cytoscape to
+            // initialise, then waits for the container to become visible/reflow
+            // before calling resizeGraph() + importJson().  The two
+            // requestAnimationFrame cycles let the browser apply the CSS that
+            // un-hides the graph panel so Cytoscape gets a non-zero canvas.
+            const _doImport = () => {
+              this.$nextTick(() => {
                 requestAnimationFrame(() => {
-                  if (window._graphFns) {
-                    window._graphFns.resizeGraph();
-                    if (window._graphFns.importJson) {
-                      window._graphFns.importJson(graph);
+                  requestAnimationFrame(() => {
+                    if (window._graphFns) {
+                      window._graphFns.resizeGraph();
+                      if (window._graphFns.importJson) {
+                        window._graphFns.importJson(graph);
+                      }
                     }
-                  }
+                  });
                 });
               });
-            });
+            };
+            if (window._agentLoopReady) {
+              _doImport();
+            } else {
+              document.addEventListener('agent-loop-ready', _doImport, { once: true });
+            }
           } else {
             this.hasGraphData = false;
             if (window._graphFns) window._graphFns.clearGraph();
@@ -1771,11 +1779,11 @@ document.addEventListener('alpine:init', () => {
 <script type="module">
   import { runAgentLoop } from '/static/agent-loop.js';
   import { makeTargetNode, extractEntities } from '/static/entity-graph.js';
-  import { initGraph, addToGraph, clearGraph, resizeGraph, exportPng, exportJson, getNodeRenderedBBox } from '/static/graph-renderer.js';
+  import { initGraph, addToGraph, clearGraph, resizeGraph, exportPng, exportJson, importJson, getNodeRenderedBBox } from '/static/graph-renderer.js';
   window._runAgentLoop    = runAgentLoop;
   window._makeTargetNode  = makeTargetNode;
   window._extractEntities = extractEntities;
-  window._graphFns        = { initGraph, addToGraph, clearGraph, resizeGraph, exportPng, exportJson, getNodeRenderedBBox };
+  window._graphFns        = { initGraph, addToGraph, clearGraph, resizeGraph, exportPng, exportJson, importJson, getNodeRenderedBBox };
   window._agentLoopReady  = true;
   document.dispatchEvent(new Event('agent-loop-ready'));
 </script>
