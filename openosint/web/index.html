@@ -377,9 +377,12 @@
 <!-- TOP BAR -->
 <header class="flex-none h-12 bg-surface border-b border-app flex items-center px-4 gap-3 z-10">
   <!-- wordmark -->
-  <div class="flex items-center flex-none">
+  <button @click="newInvestigation()"
+          class="flex items-center flex-none cursor-pointer"
+          title="Start a new investigation">
     <span class="font-mono font-medium text-sm">OpenOSINT</span>
     <span class="text-muted text-xs ml-2 font-mono" x-text="version"></span>
+  </button>
   </div>
 
   <!-- center: backend status pill -->
@@ -1412,6 +1415,12 @@ document.addEventListener('alpine:init', () => {
     },
 
     // UI helpers
+    newInvestigation() {
+      this.activeCaseId = null;
+      this.clearConversation();
+      this.activeTab = 'chat';
+    },
+
     clearConversation() {
       this.messages = []; this.chatHistory = [];
       this.hasGraphData = false; this.graphNodeCapHit = false;
