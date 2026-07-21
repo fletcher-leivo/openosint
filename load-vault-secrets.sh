@@ -92,39 +92,17 @@ load_critical() {
 }
 
 # ---------------------------------------------------------------------------
-# Helper: load an optional secret with a fallback path.
-#   $1 = env var name
-#   $2 = primary sub-path
-#   $3 = fallback sub-path
+# Fetch all secrets (unified osint/ namespace — kebab-case keys)
 # ---------------------------------------------------------------------------
-load_optional_with_fallback() {
-    local envvar="$1"
-    local primary="$2"
-    local fallback="$3"
-    local value
-    if value="$(fetch_secret "${VAULT_BASE}/${primary}")"; then
-        export "${envvar}=${value}"
-        echo "[vault] loaded ${envvar} from ${primary}"
-    elif value="$(fetch_secret "${VAULT_BASE}/${fallback}")"; then
-        export "${envvar}=${value}"
-        echo "[vault] loaded ${envvar} from ${fallback} (fallback)"
-    else
-        echo "[vault] WARNING: ${envvar} not found at ${primary} or ${fallback} (optional, continuing)" >&2
-    fi
-}
-
-# ---------------------------------------------------------------------------
-# Fetch all secrets
-# ---------------------------------------------------------------------------
-load_optional              SHODAN_API_KEY       openosint/shodan_api_key
-load_optional_with_fallback VIRUSTOTAL_API_KEY  openosint/virustotal_api_key   reputation-lookup/virustotal-api-key
-load_optional_with_fallback ABUSEIPDB_API_KEY   openosint/abuseipdb_api_key    reputation-lookup/abuseipdb-api-key
-load_optional              CENSYS_API_ID        openosint/censys_api_id
-load_optional              CENSYS_SECRET        openosint/censys_secret
-load_optional              GITHUB_TOKEN         openosint/github_token
-load_optional              IPINFO_TOKEN         openosint/ipinfo_token
-load_optional              IP2LOCATION_API_KEY  openosint/ip2location_api_key
-load_critical              OPENAI_API_KEY       openosint/openai_api_key
+load_optional              SHODAN_API_KEY       osint/shodan-api-key
+load_optional              VIRUSTOTAL_API_KEY   osint/virustotal-api-key
+load_optional              ABUSEIPDB_API_KEY    osint/abuseipdb-api-key
+load_optional              CENSYS_API_ID        osint/censys-api-id
+load_optional              CENSYS_SECRET        osint/censys-secret
+load_optional              GITHUB_TOKEN         osint/github-token
+load_optional              IPINFO_TOKEN         osint/ipinfo-token
+load_optional              IP2LOCATION_API_KEY  osint/ip2location-api-key
+load_critical              OPENAI_API_KEY       osint/openai-api-key
 
 # ---------------------------------------------------------------------------
 # Exec the wrapped command
