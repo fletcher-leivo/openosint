@@ -1,0 +1,154 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "load-vault-secrets.sh",
+      "file_type": "code",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "load_vault_secrets",
+      "community": 0,
+      "community_name": "load-vault-secrets.sh",
+      "norm_label": "load-vault-secrets.sh"
+    },
+    {
+      "label": "load-vault-secrets.sh script",
+      "file_type": "code",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "load_vault_secrets_sh__entry",
+      "community": 0,
+      "community_name": "load-vault-secrets.sh",
+      "norm_label": "load-vault-secrets.sh script"
+    },
+    {
+      "label": "fetch_secret()",
+      "file_type": "code",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L48",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "load_vault_secrets_fetch_secret",
+      "community": 0,
+      "community_name": "load-vault-secrets.sh",
+      "norm_label": "fetch_secret()"
+    },
+    {
+      "label": "load_optional()",
+      "file_type": "code",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L64",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "load_vault_secrets_load_optional",
+      "community": 0,
+      "community_name": "load-vault-secrets.sh",
+      "norm_label": "load_optional()"
+    },
+    {
+      "label": "load_critical()",
+      "file_type": "code",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L81",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "load_vault_secrets_load_critical",
+      "community": 0,
+      "community_name": "load-vault-secrets.sh",
+      "norm_label": "load_critical()"
+    }
+  ],
+  "links": [
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L48",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "load_vault_secrets",
+      "target": "load_vault_secrets_fetch_secret",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L81",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "load_vault_secrets",
+      "target": "load_vault_secrets_load_critical",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L64",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "load_vault_secrets",
+      "target": "load_vault_secrets_load_optional",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "load_vault_secrets",
+      "target": "load_vault_secrets_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L105",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "load_vault_secrets_sh__entry",
+      "target": "load_vault_secrets_load_critical",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "load-vault-secrets.sh",
+      "source_location": "L97",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "load_vault_secrets_sh__entry",
+      "target": "load_vault_secrets_load_optional",
+      "confidence_score": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "0f705fab6c32bb1155b91aef3c929b3f556bf7d7"
+}
