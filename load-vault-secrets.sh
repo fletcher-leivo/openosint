@@ -67,7 +67,7 @@ load_optional() {
     local value
     if value="$(fetch_secret "${VAULT_BASE}/${subpath}")"; then
         export "${envvar}=${value}"
-        echo "[vault] loaded ${envvar} from ${subpath}"
+        echo "[vault] loaded ${envvar} from ${subpath}" >&2
     else
         echo "[vault] WARNING: ${envvar} not found at ${subpath} (optional, continuing)" >&2
     fi
@@ -84,7 +84,7 @@ load_critical() {
     local value
     if value="$(fetch_secret "${VAULT_BASE}/${subpath}")"; then
         export "${envvar}=${value}"
-        echo "[vault] loaded ${envvar} from ${subpath}"
+        echo "[vault] loaded ${envvar} from ${subpath}" >&2
     else
         echo "[vault] ERROR: ${envvar} not found at ${subpath} (CRITICAL — aborting)" >&2
         exit 1
@@ -104,10 +104,10 @@ load_optional_with_fallback() {
     local value
     if value="$(fetch_secret "${VAULT_BASE}/${primary}")"; then
         export "${envvar}=${value}"
-        echo "[vault] loaded ${envvar} from ${primary}"
+        echo "[vault] loaded ${envvar} from ${primary}" >&2
     elif value="$(fetch_secret "${VAULT_BASE}/${fallback}")"; then
         export "${envvar}=${value}"
-        echo "[vault] loaded ${envvar} from ${fallback} (fallback)"
+        echo "[vault] loaded ${envvar} from ${fallback} (fallback)" >&2
     else
         echo "[vault] WARNING: ${envvar} not found at ${primary} or ${fallback} (optional, continuing)" >&2
     fi
@@ -134,5 +134,5 @@ if [ "$#" -eq 0 ]; then
     exit 1
 fi
 
-echo "[vault] exec: $*"
+echo "[vault] exec: $*" >&2
 exec "$@"
